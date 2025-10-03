@@ -8,13 +8,15 @@ import {
   Checkbox,
   Alert,
   CircularProgress,
+  Typography,
+  Divider
 } from '@mui/material';
 import api from '../api/axiosConfig';
 
 export default function FormMembros({ onSuccess }) {
   const [formData, setFormData] = useState({
     nome: '',
-    foto: '',
+    foto: null,
     genero: '',
     data_nascimento: '',
     estado_civil: '',
@@ -25,15 +27,27 @@ export default function FormMembros({ onSuccess }) {
     endereco_bairro: '',
     endereco_cidade: '',
     endereco_provincia: '',
-    grau_academico: '',
-    profissao: '',
     batizado: false,
     data_batismo: '',
     ativo: true,
-    CargoId: '', // <- Agora com o nome atualizado
+    CargosIds: [],
+    DepartamentosIds: [],
+    habilitacoes: '',
+    especialidades: '',
+    estudo_teologico: '',
+    local_formacao: '',
+    profissao: '',
+    consagrado: false,
+    data_consagracao: '',
+    categoria_ministerial: '',
+    trabalha: false,
+    conta_outrem: false,
+    conta_propria: false,
   });
 
+  const [previewFoto, setPreviewFoto] = useState(null);
   const [cargos, setCargos] = useState([]);
+  const [departamentos, setDepartamentos] = useState([]);
   const [mensagem, setMensagem] = useState({ tipo: '', texto: '' });
   const [loading, setLoading] = useState(false);
 
@@ -47,36 +61,47 @@ export default function FormMembros({ onSuccess }) {
         setMensagem({ tipo: 'error', texto: 'Erro ao carregar os cargos.' });
       }
     };
+
+    const fetchDepartamentos = async () => {
+      try {
+        const res = await api.get('/departamentos');
+        setDepartamentos(res.data);
+      } catch (err) {
+        console.error('Erro ao carregar departamentos:', err);
+        setMensagem({ tipo: 'error', texto: 'Erro ao carregar os departamentos.' });
+      }
+    };
+
     fetchCargos();
+    fetchDepartamentos();
   }, []);
 
   const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
-
+    const { name, value, type, checked, files } = e.target;
     let finalValue;
+
     if (type === 'checkbox') {
       finalValue = checked;
-    } else if (name === 'CargoId') {
-      finalValue = parseInt(value, 10); // Garante que seja um número
+    } else if (name === 'foto') {
+      finalValue = files[0] || null;
+      if (files[0]) setPreviewFoto(URL.createObjectURL(files[0]));
+    } else if (name === 'CargosIds' || name === 'DepartamentosIds') {
+      finalValue = typeof value === 'string' ? value.split(',').map(Number) : value.map(Number);
     } else {
       finalValue = value;
     }
 
-    setFormData((prev) => ({
-      ...prev,
-      [name]: finalValue,
-    }));
-
+    setFormData((prev) => ({ ...prev, [name]: finalValue }));
     setMensagem({ tipo: '', texto: '' });
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!formData.nome || !formData.genero || !formData.CargoId) {
+    if (!formData.nome || !formData.genero) {
       setMensagem({
         tipo: 'error',
-        texto: 'Por favor, preencha os campos obrigatórios: nome, gênero e cargo.',
+        texto: 'Por favor, preencha os campos obrigatórios: nome e gênero.',
       });
       return;
     }
@@ -84,8 +109,23 @@ export default function FormMembros({ onSuccess }) {
     setLoading(true);
 
     try {
-      console.log('Enviando dados do membro:', formData); // DEBUG
-      const res = await api.post('/membros', formData);
+      const data = new FormData();
+
+      Object.keys(formData).forEach((key) => {
+        if (formData[key] !== null && formData[key] !== undefined) {
+          if (key === 'foto' && formData.foto) {
+            data.append('foto', formData.foto);
+          } else if (key === 'DepartamentosIds' || key === 'CargosIds') {
+            formData[key].forEach((id) => data.append(`${key}[]`, id));
+          } else {
+            data.append(key, formData[key]);
+          }
+        }
+      });
+
+      const res = await api.post('/membros', data, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
 
       setMensagem({
         tipo: 'success',
@@ -94,7 +134,7 @@ export default function FormMembros({ onSuccess }) {
 
       setFormData({
         nome: '',
-        foto: '',
+        foto: null,
         genero: '',
         data_nascimento: '',
         estado_civil: '',
@@ -105,13 +145,25 @@ export default function FormMembros({ onSuccess }) {
         endereco_bairro: '',
         endereco_cidade: '',
         endereco_provincia: '',
-        grau_academico: '',
-        profissao: '',
         batizado: false,
         data_batismo: '',
         ativo: true,
-        CargoId: '',
+        CargosIds: [],
+        DepartamentosIds: [],
+        habilitacoes: '',
+        especialidades: '',
+        estudo_teologico: '',
+        local_formacao: '',
+        profissao: '',
+        consagrado: false,
+        data_consagracao: '',
+        categoria_ministerial: '',
+        trabalha: false,
+        conta_outrem: false,
+        conta_propria: false,
       });
+
+      setPreviewFoto(null);
 
       if (onSuccess) onSuccess();
     } catch (err) {
@@ -125,13 +177,22 @@ export default function FormMembros({ onSuccess }) {
     }
   };
 
+  const commonInputStyles = {
+    input: { color: 'white' },
+    svg: { color: 'white' },
+  };
+
   return (
-    <Box component="form" onSubmit={handleSubmit}>
-      {mensagem.texto && (
-        <Alert severity={mensagem.tipo} sx={{ mb: 2 }}>
-          {mensagem.texto}
-        </Alert>
-      )}
+    <Box
+      component="form"
+      onSubmit={handleSubmit}
+      encType="multipart/form-data"
+      sx={{ maxWidth: 800, mx: 'auto', color: 'white' }}
+    >
+      {mensagem.texto && <Alert severity={mensagem.tipo} sx={{ mb: 2 }}>{mensagem.texto}</Alert>}
+
+      <Typography variant="h6" sx={{ mt: 2, mb: 1, color: '#b3e5fc' }}>Dados Pessoais</Typography>
+      <Divider sx={{ mb: 2, borderColor: '#b3e5fc' }} />
 
       <TextField
         fullWidth
@@ -139,18 +200,30 @@ export default function FormMembros({ onSuccess }) {
         name="nome"
         value={formData.nome}
         onChange={handleChange}
-        required
         margin="normal"
+        required
+        InputLabelProps={{ style: { color: '#b3e5fc' } }}
+        inputProps={{ style: { color: 'white' } }}
       />
 
-      <TextField
-        fullWidth
-        label="Foto (URL)"
-        name="foto"
-        value={formData.foto}
-        onChange={handleChange}
-        margin="normal"
-      />
+      <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+        <Button
+          variant="contained"
+          component="label"
+          sx={{ mr: 2, color: 'white', backgroundColor: '#1976d2', '&:hover': { backgroundColor: '#1565c0' } }}
+        >
+          {formData.foto ? 'Alterar Foto' : 'Selecionar Foto'}
+          <input type="file" name="foto" accept="image/*" hidden onChange={handleChange} />
+        </Button>
+        {previewFoto && (
+          <Box
+            component="img"
+            src={previewFoto}
+            alt="Preview da foto"
+            sx={{ width: 80, height: 80, borderRadius: '50%', objectFit: 'cover', border: '2px solid #b3e5fc' }}
+          />
+        )}
+      </Box>
 
       <TextField
         select
@@ -159,8 +232,14 @@ export default function FormMembros({ onSuccess }) {
         name="genero"
         value={formData.genero}
         onChange={handleChange}
-        required
         margin="normal"
+        required
+        InputLabelProps={{ style: { color: '#b3e5fc' } }}
+        inputProps={{ style: { color: 'white' } }}
+        SelectProps={{
+          MenuProps: { PaperProps: { sx: { bgcolor: '#263238', color: 'white' } } },
+          sx: { color: 'white' },
+        }}
       >
         <MenuItem value="Masculino">Masculino</MenuItem>
         <MenuItem value="Feminino">Feminino</MenuItem>
@@ -174,8 +253,10 @@ export default function FormMembros({ onSuccess }) {
         type="date"
         value={formData.data_nascimento}
         onChange={handleChange}
-        InputLabelProps={{ shrink: true }}
+        InputLabelProps={{ shrink: true, style: { color: '#b3e5fc' } }}
+        inputProps={{ style: { color: 'white' } }}
         margin="normal"
+        sx={{ svg: { color: 'white' } }}
       />
 
       <TextField
@@ -186,6 +267,12 @@ export default function FormMembros({ onSuccess }) {
         value={formData.estado_civil}
         onChange={handleChange}
         margin="normal"
+        InputLabelProps={{ style: { color: '#b3e5fc' } }}
+        inputProps={{ style: { color: 'white' } }}
+        SelectProps={{
+          MenuProps: { PaperProps: { sx: { bgcolor: '#263238', color: 'white' } } },
+          sx: { color: 'white' },
+        }}
       >
         <MenuItem value="Solteiro">Solteiro</MenuItem>
         <MenuItem value="Casado">Casado</MenuItem>
@@ -193,25 +280,24 @@ export default function FormMembros({ onSuccess }) {
         <MenuItem value="Viúvo">Viúvo</MenuItem>
       </TextField>
 
-      <TextField fullWidth label="BI" name="bi" value={formData.bi} onChange={handleChange} margin="normal" />
-      <TextField fullWidth label="Telefone" name="telefone" value={formData.telefone} onChange={handleChange} margin="normal" />
-      <TextField fullWidth label="Email" name="email" type="email" value={formData.email} onChange={handleChange} margin="normal" />
-      <TextField fullWidth label="Rua" name="endereco_rua" value={formData.endereco_rua} onChange={handleChange} margin="normal" />
-      <TextField fullWidth label="Bairro" name="endereco_bairro" value={formData.endereco_bairro} onChange={handleChange} margin="normal" />
-      <TextField fullWidth label="Cidade" name="endereco_cidade" value={formData.endereco_cidade} onChange={handleChange} margin="normal" />
-      <TextField fullWidth label="Província" name="endereco_provincia" value={formData.endereco_provincia} onChange={handleChange} margin="normal" />
-      <TextField fullWidth label="Grau Acadêmico" name="grau_academico" value={formData.grau_academico} onChange={handleChange} margin="normal" />
-      <TextField fullWidth label="Profissão" name="profissao" value={formData.profissao} onChange={handleChange} margin="normal" />
+      {/* Campos simples */}
+      {['bi', 'telefone', 'email', 'endereco_rua', 'endereco_bairro', 'endereco_cidade', 'endereco_provincia'].map((campo) => (
+        <TextField
+          key={campo}
+          fullWidth
+          label={campo.charAt(0).toUpperCase() + campo.slice(1).replace('_', ' ')}
+          name={campo}
+          value={formData[campo]}
+          onChange={handleChange}
+          margin="normal"
+          InputLabelProps={{ style: { color: '#b3e5fc' } }}
+          inputProps={{ style: { color: 'white' } }}
+        />
+      ))}
 
       <FormControlLabel
-        control={
-          <Checkbox
-            name="batizado"
-            checked={formData.batizado}
-            onChange={handleChange}
-          />
-        }
-        label="Batizado"
+        control={<Checkbox name="batizado" checked={formData.batizado} onChange={handleChange} sx={{ color: 'white' }} />}
+        label={<Typography sx={{ color: '#b3e5fc' }}>Batizado</Typography>}
       />
 
       <TextField
@@ -221,44 +307,88 @@ export default function FormMembros({ onSuccess }) {
         type="date"
         value={formData.data_batismo}
         onChange={handleChange}
-        InputLabelProps={{ shrink: true }}
+        InputLabelProps={{ shrink: true, style: { color: '#b3e5fc' } }}
+        inputProps={{ style: { color: 'white' } }}
         margin="normal"
+        sx={{ svg: { color: 'white' } }}
       />
 
       <FormControlLabel
-        control={
-          <Checkbox
-            name="ativo"
-            checked={formData.ativo}
-            onChange={handleChange}
-          />
-        }
-        label="Ativo"
+        control={<Checkbox name="ativo" checked={formData.ativo} onChange={handleChange} sx={{ color: 'white' }} />}
+        label={<Typography sx={{ color: '#b3e5fc' }}>Ativo</Typography>}
       />
 
       <TextField
         select
         fullWidth
-        label="Cargo *"
-        name="CargoId"
-        value={formData.CargoId}
+        label="Cargos"
+        name="CargosIds"
+        value={formData.CargosIds}
         onChange={handleChange}
-        required
         margin="normal"
+        SelectProps={{
+          multiple: true,
+          MenuProps: { PaperProps: { sx: { bgcolor: '#263238', color: 'white' } } },
+          sx: { color: 'white' },
+        }}
+        InputLabelProps={{ style: { color: '#b3e5fc' } }}
+        inputProps={{ style: { color: 'white' } }}
       >
         {cargos.map((cargo) => (
-          <MenuItem key={cargo.id} value={cargo.id}>
-            {cargo.nome}
-          </MenuItem>
+          <MenuItem key={cargo.id} value={cargo.id}>{cargo.nome}</MenuItem>
         ))}
       </TextField>
+
+      <TextField
+        select
+        fullWidth
+        label="Departamentos"
+        name="DepartamentosIds"
+        value={formData.DepartamentosIds}
+        onChange={handleChange}
+        margin="normal"
+        SelectProps={{
+          multiple: true,
+          MenuProps: { PaperProps: { sx: { bgcolor: '#263238', color: 'white' } } },
+          sx: { color: 'white' },
+        }}
+        InputLabelProps={{ style: { color: '#b3e5fc' } }}
+        inputProps={{ style: { color: 'white' } }}
+      >
+        {departamentos.map((dep) => <MenuItem key={dep.id} value={dep.id}>{dep.nome}</MenuItem>)}
+      </TextField>
+
+      {/* Demais campos */}
+      {['habilitacoes', 'especialidades', 'estudo_teologico', 'local_formacao', 'profissao', 'data_consagracao', 'categoria_ministerial'].map((campo) => (
+        <TextField
+          key={campo}
+          fullWidth
+          label={campo.charAt(0).toUpperCase() + campo.slice(1).replace('_', ' ')}
+          name={campo}
+          value={formData[campo]}
+          onChange={handleChange}
+          margin="normal"
+          InputLabelProps={{ style: { color: '#b3e5fc' } }}
+          inputProps={{ style: { color: 'white' } }}
+          type={campo.includes('data') ? 'date' : 'text'}
+          sx={campo.includes('data') ? { svg: { color: 'white' } } : {}}
+        />
+      ))}
+
+      {['consagrado', 'trabalha', 'conta_outrem', 'conta_propria'].map((campo) => (
+        <FormControlLabel
+          key={campo}
+          control={<Checkbox name={campo} checked={formData[campo]} onChange={handleChange} sx={{ color: 'white' }} />}
+          label={<Typography sx={{ color: '#b3e5fc' }}>{campo.charAt(0).toUpperCase() + campo.slice(1).replace('_', ' ')}</Typography>}
+        />
+      ))}
 
       <Button
         type="submit"
         variant="contained"
         color="primary"
         fullWidth
-        sx={{ mt: 2 }}
+        sx={{ mt: 3 }}
         disabled={loading}
         startIcon={loading ? <CircularProgress size={20} /> : null}
       >

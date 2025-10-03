@@ -6,7 +6,11 @@ import {
   MenuItem,
   InputAdornment,
   CircularProgress,
+  FormControl,
+  InputLabel,
+  Select
 } from '@mui/material';
+import dayjs from 'dayjs';
 import api from '../api/axiosConfig';
 
 export default function FormLansarContribuicao({ tipo, onSuccess, onCancel }) {
@@ -15,13 +19,17 @@ export default function FormLansarContribuicao({ tipo, onSuccess, onCancel }) {
   const [descricao, setDescricao] = useState('');
   const [membroId, setMembroId] = useState('');
   const [tipoId, setTipoId] = useState(tipo?.id || '');
+  const [cultoId, setCultoId] = useState('');
   const [loading, setLoading] = useState(false);
 
   const [membros, setMembros] = useState([]);
   const [tipos, setTipos] = useState([]);
+  const [cultos, setCultos] = useState([]);
   const [loadingMembros, setLoadingMembros] = useState(true);
   const [loadingTipos, setLoadingTipos] = useState(true);
+  const [loadingCultos, setLoadingCultos] = useState(true);
 
+  // Buscar membros
   useEffect(() => {
     async function fetchMembros() {
       try {
@@ -36,6 +44,7 @@ export default function FormLansarContribuicao({ tipo, onSuccess, onCancel }) {
     fetchMembros();
   }, []);
 
+  // Buscar tipos de contribuição
   useEffect(() => {
     async function fetchTipos() {
       try {
@@ -50,6 +59,22 @@ export default function FormLansarContribuicao({ tipo, onSuccess, onCancel }) {
     fetchTipos();
   }, []);
 
+  // Buscar cultos ativos
+  useEffect(() => {
+    async function fetchCultos() {
+      try {
+        const res = await api.get('/buscar-cultos');
+        setCultos(res.data);
+      } catch (error) {
+        console.error('Erro ao buscar cultos:', error);
+      } finally {
+        setLoadingCultos(false);
+      }
+    }
+    fetchCultos();
+  }, []);
+
+  // Atualizar tipo caso venha via props
   useEffect(() => {
     if (tipo?.id) {
       setTipoId(tipo.id);
@@ -65,8 +90,9 @@ export default function FormLansarContribuicao({ tipo, onSuccess, onCancel }) {
         valor,
         data,
         descricao,
-        MembroId: membroId || null, // se vazio, envia null para backend
+        MembroId: membroId || null,
         TipoContribuicaoId: tipoId,
+        CultoId: cultoId || null, // envia o culto selecionado ou null
       });
 
       onSuccess();
@@ -77,7 +103,7 @@ export default function FormLansarContribuicao({ tipo, onSuccess, onCancel }) {
     }
   };
 
-  if (loadingMembros || loadingTipos) {
+  if (loadingMembros || loadingTipos || loadingCultos) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
         <CircularProgress />
@@ -146,14 +172,10 @@ export default function FormLansarContribuicao({ tipo, onSuccess, onCancel }) {
         select
         value={tipoId}
         onChange={(e) => setTipoId(e.target.value)}
-        sx={{ mb: 3 }}
+        sx={{ mb: 2 }}
         disabled={!!(tipo && tipo.id)}
       >
-        {!tipo && (
-          <MenuItem value="">
-            <em>Selecione o tipo</em>
-          </MenuItem>
-        )}
+        {!tipo && <MenuItem value=""><em>Selecione o tipo</em></MenuItem>}
         {tipo ? (
           <MenuItem value={tipo.id}>{tipo.nome}</MenuItem>
         ) : (
@@ -164,6 +186,24 @@ export default function FormLansarContribuicao({ tipo, onSuccess, onCancel }) {
           ))
         )}
       </TextField>
+
+      {/* Select para Cultos (não obrigatório) */}
+      <FormControl fullWidth sx={{ mb: 3 }}>
+        <InputLabel>Culto</InputLabel>
+        <Select
+          value={cultoId}
+          onChange={(e) => setCultoId(e.target.value)}
+        >
+          <MenuItem value="">
+            <em>Nenhum culto selecionado</em>
+          </MenuItem>
+          {cultos.map((c) => (
+            <MenuItem key={c.id} value={c.id}>
+              {c.TipoCulto?.nome} - {dayjs(c.dataHora).format('DD/MM/YYYY HH:mm')}
+            </MenuItem>
+          ))}
+        </Select>
+      </FormControl>
 
       <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
         <Button onClick={onCancel}>Cancelar</Button>

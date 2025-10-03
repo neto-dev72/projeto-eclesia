@@ -1,7 +1,12 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
 const Membro = require("./Membros")
-const Cargos = require("./Cargo")
+
+
+const Sede = require("./Sede");
+const Filhal = require("./filhal");
+
+
 
 const Cargo = sequelize.define('Cargo', {
 nome: {
@@ -14,6 +19,20 @@ nome: {
   }
 }, {
 });
+
+
+
+
+
+
+
+Sede.hasMany(Cargo);
+Cargo.belongsTo(Sede);
+
+
+
+Filhal.hasMany(Cargo);
+Cargo.belongsTo(Filhal);
 
 
 module.exports = Cargo;

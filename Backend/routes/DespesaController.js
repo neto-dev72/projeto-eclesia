@@ -23,15 +23,55 @@ const Despesas = require("../modells/Despesas");
 const CargoMembro = require("../modells/CargoMembro");
 
 
-// Rota para cadastrar nova despesa
-router.post('/despesas', async (req, res) => {
+const Op = require("sequelize");
+
+
+
+const auth = require("../middlewere/auth");
+
+
+// GET /lista/despesas - listar despesas filtradas pelo usuário logado
+router.get('/lista/despesas', auth, async (req, res) => {
+  try {
+    const { SedeId, FilhalId } = req.usuario;
+
+    // Define o filtro inicial com base na hierarquia
+    let filtro = {};
+    if (FilhalId) {
+      filtro.FilhalId = FilhalId;
+    } else if (SedeId) {
+      filtro.SedeId = SedeId;
+    }
+
+    // Buscar despesas filtradas
+    const despesas = await Despesas.findAll({
+      where: filtro,
+      order: [['createdAt', 'DESC']], // mais recentes primeiro
+    });
+
+    res.status(200).json(despesas);
+  } catch (error) {
+    console.error('Erro ao listar despesas:', error);
+    res.status(500).json({ message: 'Erro ao buscar despesas' });
+  }
+});
+
+
+
+// POST /despesas - cadastrar nova despesa com dados do usuário logado
+router.post('/despesas', auth, async (req, res) => {
   try {
     const { descricao, valor, data, categoria, tipo, observacao } = req.body;
 
+    // Validação básica
     if (!descricao || !valor || !data || !tipo) {
       return res.status(400).json({ message: 'Campos obrigatórios não preenchidos.' });
     }
 
+    // Pega os dados do usuário logado
+    const { SedeId, FilhalId } = req.usuario;
+
+    // Criação do registro
     const novaDespesa = await Despesas.create({
       descricao,
       valor,
@@ -39,40 +79,57 @@ router.post('/despesas', async (req, res) => {
       categoria: categoria || null,
       tipo,
       observacao: observacao || null,
+      SedeId: SedeId || null,
+      FilhalId: FilhalId || null
     });
 
-    res.status(201).json(novaDespesa);
+    return res.status(201).json({
+      message: 'Despesa cadastrada com sucesso!',
+      despesa: novaDespesa
+    });
   } catch (error) {
     console.error('Erro ao cadastrar despesa:', error);
-    res.status(500).json({ message: 'Erro interno ao cadastrar despesa.' });
+    return res.status(500).json({ message: 'Erro interno ao cadastrar despesa.' });
   }
 });
 
 
 
-router.get('/lista/tipos-despesa', async (req, res) => {
+
+
+// GET /lista/tipos-despesa - listar tipos de despesa com totais filtrados pelo usuário logado
+router.get('/lista/tipos-despesa', auth, async (req, res) => {
   try {
+    const { SedeId, FilhalId } = req.usuario;
+
+    // Buscar todos os tipos de despesa
     const tipos = await Despesas.findAll({
-      attributes: ['id', 'nome', 'ativo', 'createdAt'],
+      attributes: ['id', 'descricao', 'tipo', 'createdAt'], // ajustar campos conforme tabela de tipos
+      group: ['id', 'descricao', 'tipo', 'createdAt'], // garantir que não haja duplicidade
     });
 
+    // Calcular totais para cada tipo considerando o contexto hierárquico
     const tiposComTotais = await Promise.all(
       tipos.map(async (tipo) => {
         const despesas = await Despesas.findAll({
-          where: { TipoDespesaId: tipo.id },
+          where: {
+            TipoDespesaId: tipo.id,
+            ...(SedeId && { SedeId }),
+            ...(!SedeId && FilhalId && { FilhalId })
+          },
           attributes: ['valor'],
         });
 
         const valores = despesas.map(d => parseFloat(d.valor));
-        const receitaTotal = valores.reduce((acc, v) => acc + v, 0);
-        const receitaMedia = valores.length ? receitaTotal / valores.length : 0;
-        const maiorDespesa = Math.max(...valores, 0);
+        const valorTotal = valores.reduce((acc, v) => acc + v, 0);
+        const valorMedio = valores.length ? valorTotal / valores.length : 0;
+        const maiorDespesa = valores.length ? Math.max(...valores) : 0;
 
         return {
           ...tipo.toJSON(),
           totalDespesas: despesas.length,
-          valorTotal: receitaTotal,
-          valorMedio: receitaMedia,
+          valorTotal,
+          valorMedio,
           maiorDespesa
         };
       })
@@ -85,17 +142,44 @@ router.get('/lista/tipos-despesa', async (req, res) => {
   }
 });
 
-// GET /despesas
-router.get('/despesas', async (req, res) => {
+
+
+// GET /relatorio/despesas - relatório de despesas filtrado pelo usuário logado
+router.get('/relatorio/despesas', auth, async (req, res) => {
   try {
+    const { startDate, endDate, tipo } = req.query;
+    const { SedeId, FilhalId } = req.usuario;
+
+    // Construir filtro inicial
+    let where = {};
+
+    // Filtrar por intervalo de datas
+    if (startDate && endDate) {
+      where.data = { [Op.between]: [startDate, endDate] };
+    }
+
+    // Filtrar pelo tipo de despesa (Fixa ou Variável)
+    if (tipo) {
+      where.tipo = tipo;
+    }
+
+    // Filtro hierárquico pelo usuário logado
+    if (SedeId) {
+      where.SedeId = SedeId;
+    } else if (FilhalId) {
+      where.FilhalId = FilhalId;
+    }
+
+    // Buscar despesas
     const despesas = await Despesas.findAll({
+      where,
       order: [['data', 'DESC'], ['createdAt', 'DESC']],
     });
 
     res.status(200).json(despesas);
   } catch (error) {
-    console.error('Erro ao buscar despesas:', error);
-    res.status(500).json({ message: 'Erro ao buscar despesas.' });
+    console.error('Erro ao gerar relatório de despesas:', error);
+    res.status(500).json({ message: 'Erro ao gerar relatório de despesas.' });
   }
 });
 
@@ -150,21 +234,45 @@ router.delete('/despesas/:id', async (req, res) => {
 });
 
 
-// GET /despesas/totais
-router.get('/despesas/totais', async (req, res) => {
+
+
+
+// GET /despesas/totais - totais de despesas filtrados pelo usuário logado
+router.get('/despesas/totais', auth, async (req, res) => {
   try {
-    const { Op } = require('sequelize');
+    const { SedeId, FilhalId } = req.usuario;
 
-    const totalGeral = await Despesas.sum('valor');
+    // Filtro hierárquico
+    let filtro = {};
+    if (SedeId) {
+      filtro.SedeId = SedeId;
+    } else if (FilhalId) {
+      filtro.FilhalId = FilhalId;
+    }
 
+    // Total geral
+    const totalGeral = await Despesas.sum('valor', { where: filtro }) || 0;
+
+    // Total por tipo
     const totalPorTipo = await Despesas.findAll({
-      attributes: ['tipo', [Despesas.sequelize.fn('SUM', Despesas.sequelize.col('valor')), 'total']],
+      attributes: [
+        'tipo',
+        [Despesas.sequelize.fn('SUM', Despesas.sequelize.col('valor')), 'total']
+      ],
+      where: filtro,
       group: ['tipo'],
+      raw: true
     });
 
+    // Total por categoria
     const totalPorCategoria = await Despesas.findAll({
-      attributes: ['categoria', [Despesas.sequelize.fn('SUM', Despesas.sequelize.col('valor')), 'total']],
+      attributes: [
+        'categoria',
+        [Despesas.sequelize.fn('SUM', Despesas.sequelize.col('valor')), 'total']
+      ],
+      where: filtro,
       group: ['categoria'],
+      raw: true
     });
 
     res.status(200).json({
@@ -177,6 +285,8 @@ router.get('/despesas/totais', async (req, res) => {
     res.status(500).json({ message: 'Erro ao calcular totais.' });
   }
 });
+
+
 
 
 module.exports = router;

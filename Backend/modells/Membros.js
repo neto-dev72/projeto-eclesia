@@ -1,6 +1,14 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
 
+
+
+
+const Sede = require("./Sede");
+const Filhal = require("./filhal");
+
+
+
 const Membros = sequelize.define('Membro', {
   nome: {
     type: DataTypes.STRING,
@@ -79,5 +87,13 @@ const Membros = sequelize.define('Membro', {
 
 
 
+
+Sede.hasMany(Membros);
+Membros.belongsTo(Sede);
+
+
+
+Filhal.hasMany(Membros);
+Membros.belongsTo(Filhal);
 
 module.exports = Membros;

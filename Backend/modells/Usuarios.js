@@ -1,35 +1,30 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
 
+const Sede = require("./Sede");
+const Filhal = require("./filhal");
+
 const Usuario = sequelize.define('Usuario', {
   nome: {
     type: DataTypes.STRING,
     allowNull: false
-  },
-  email: {
-    type: DataTypes.STRING,
-    unique: true,
-    allowNull: false,
-    validate: {
-      isEmail: true
-    }
   },
   senha: {
     type: DataTypes.STRING,
     allowNull: false
   },
   funcao: {
-    type: DataTypes.ENUM('super_admin', 'pastor', 'tesoureiro', 'secretario', 'membro'),
-    defaultValue: 'membro',
-    allowNull: false
-  },
-  ativo: {
-    type: DataTypes.BOOLEAN,
-    defaultValue: true
+    type: DataTypes.ENUM('super_admin', 'admin', 'moderador', 'usuario'),
+    allowNull: false,
+    defaultValue: 'usuario'
   }
-}, {
-  tableName: 'usuarios',
-  timestamps: true
 });
+
+// Relacionamentos
+Sede.hasMany(Usuario);
+Usuario.belongsTo(Sede);
+
+Filhal.hasMany(Usuario);
+Usuario.belongsTo(Filhal);
 
 module.exports = Usuario;

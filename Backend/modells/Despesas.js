@@ -1,6 +1,13 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
 
+
+
+const Sede = require("./Sede");
+const Filhal = require("./filhal");
+
+
+
 const Despesa = sequelize.define('Despesa', {
   descricao: {
     type: DataTypes.STRING,
@@ -30,5 +37,17 @@ const Despesa = sequelize.define('Despesa', {
   tableName: 'despesas',
   timestamps: true
 });
+
+
+
+
+
+Sede.hasMany(Despesa);
+Despesa.belongsTo(Sede);
+
+
+
+Filhal.hasMany(Despesa);
+Despesa.belongsTo(Filhal);
 
 module.exports = Despesa;

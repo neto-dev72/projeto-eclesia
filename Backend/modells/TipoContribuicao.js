@@ -1,11 +1,17 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
 
+
+
+const Sede = require("./Sede");
+const Filhal = require("./filhal");
+
+
 const TipoContribuicao = sequelize.define('TipoContribuicao', {
   nome: {
     type: DataTypes.STRING,
-    allowNull: false,
-    unique: true
+    allowNull: false
+    
   },
   ativo: {
     type: DataTypes.BOOLEAN,
@@ -14,5 +20,18 @@ const TipoContribuicao = sequelize.define('TipoContribuicao', {
 }, {
  
 });
+
+
+
+
+
+Sede.hasMany(TipoContribuicao);
+TipoContribuicao.belongsTo(Sede);
+
+
+
+Filhal.hasMany(TipoContribuicao);
+TipoContribuicao.belongsTo(Filhal);
+
 
 module.exports = TipoContribuicao;

@@ -3,7 +3,7 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
 const sequelize = require('./config/database');
-
+const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 8000;
 
@@ -11,6 +11,10 @@ app.use(cors({
   origin: 'http://localhost:3000',
   credentials: true
 }));
+
+
+
+app.use(express.json());
 
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
@@ -34,6 +38,17 @@ app.get('/', (req, res) => {
 });
 
 
+
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+
+
+const DespesaController = require("./routes/DespesaController")
+
+app.use("/", DespesaController);
+
+
+
 const UsuarioController = require("./routes/UsuarioControllers")
 
 app.use("/", UsuarioController);
@@ -53,12 +68,6 @@ const GraficoController = require("./routes/GraficoController")
 app.use("/", GraficoController);
 
 
-
-
-const DespesaController = require("./routes/DespesaController")
-
-app.use("/", DespesaController);
-
 // Aqui continua o resto do seu código normalmente...
 
 const bcrypt = require("bcrypt")
@@ -75,7 +84,43 @@ const Cargo = require("./modells/Cargo");
 const CargoMembro = require("./modells/CargoMembro");
 
 
-app.use(express.json());
+const Cultos = require("./modells/Cultos");
+const Presencas = require("./modells/Presencas");
+
+
+const Departamentos = require("./modells/Departamentos");
+
+
+const DepartamentoMembros = require("./modells/DptMembros");
+
+
+
+
+const DadosAcademicos = require("./modells/DadosAcademicos");
+const DadosCristaos = require("./modells/DadosCristaos");
+
+
+const Diversos = require("./modells/Diversos");
+
+
+
+const TipoCultos = require("./modells/TipoCulto");
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 // Inicializa conexão com o banco e sobe o servidor
 (async () => {
