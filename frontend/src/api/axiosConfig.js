@@ -1,10 +1,9 @@
 // src/api/axiosConfig.js
 import axios from 'axios';
 
-// Cria uma instância do Axios
+
 const api = axios.create({
-  baseURL: 'http://localhost:8000', // URL do seu backend
-  // aqui pode adicionar outros configs globais tipo timeout, headers padrão, etc
+  baseURL: 'http://168.231.112.34:8000', // URL do backend na VPS
 });
 
 // Interceptor para enviar o token automaticamente em todas as requisições
