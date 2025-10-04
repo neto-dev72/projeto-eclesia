@@ -1,5 +1,4 @@
 // src/components/FormTipoContribuicao.jsx
-
 import React, { useState, useEffect } from 'react';
 import {
   TextField,
@@ -49,7 +48,13 @@ export default function FormTipoContribuicao({ tipo, onSuccess, onCancel }) {
         required
         value={nome}
         onChange={(e) => setNome(e.target.value)}
-        sx={{ mb: 2 }}
+        sx={{
+          mb: 2,
+          '& .MuiInputLabel-root': { color: '#fff' }, // label clara
+          '& .MuiOutlinedInput-root': {
+            '& input': { color: '#fff' }, // texto digitado claro
+          },
+        }}
       />
 
       <FormControlLabel
@@ -61,15 +66,14 @@ export default function FormTipoContribuicao({ tipo, onSuccess, onCancel }) {
           />
         }
         label="Ativo"
+        sx={{ color: '#fff' }} // label do switch clara
       />
 
       <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
-        <Button onClick={onCancel}>Cancelar</Button>
-        <Button
-          type="submit"
-          variant="contained"
-          disabled={loading}
-        >
+        <Button onClick={onCancel} sx={{ color: '#fff' }}>
+          Cancelar
+        </Button>
+        <Button type="submit" variant="contained" disabled={loading}>
           {tipo ? 'Atualizar' : 'Cadastrar'}
         </Button>
       </Box>

@@ -212,6 +212,108 @@ router.post('/login', async (req, res) => {
 
 
 
+
+
+
+
+
+// Rota para buscar um membro pelo ID
+router.get('/perfil-membros/:id', auth, async (req, res) => {
+  try {
+    const membroId = req.params.id;
+
+    // Buscar o membro com apenas os campos que existem na tabela
+    const membro = await Membros.findOne({
+      where: { id: membroId },
+      attributes: [
+        'id',
+        'nome',
+        'foto',
+        'genero',
+        'data_nascimento',
+        'estado_civil',
+        'telefone',
+        'email',
+        'endereco_cidade',
+        'profissao',
+        'batizado',
+        'ativo'
+      ],
+    });
+
+    if (!membro) {
+      return res.status(404).json({ message: 'Membro não encontrado.' });
+    }
+
+    // Buscar departamentos do membro
+    const deptosIds = await DepartamentoMembros.findAll({
+      where: { MembroId: membroId },
+      attributes: ['DepartamentoId']
+    });
+    const departamentoIds = deptosIds.map(d => d.DepartamentoId);
+    const departamentos = await Departamentos.findAll({
+      where: { id: departamentoIds },
+      attributes: ['id', 'nome']
+    });
+
+    // Buscar cargos do membro
+    const cargosIds = await CargoMembro.findAll({
+      where: { MembroId: membroId },
+      attributes: ['CargoId']
+    });
+    const cargoIds = cargosIds.map(c => c.CargoId);
+    const cargos = await Cargo.findAll({
+      where: { id: cargoIds },
+      attributes: ['id', 'nome']
+    });
+
+    // Buscar dados acadêmicos
+    const dadosAcademicos = await DadosAcademicos.findOne({
+      where: { MembroId: membroId },
+      attributes: ['habilitacoes', 'especialidades', 'estudo_teologico', 'local_formacao']
+    });
+
+    // Buscar dados cristãos
+    const dadosCristaos = await DadosCristaos.findOne({
+      where: { MembroId: membroId },
+      attributes: ['consagrado', 'data_consagracao', 'categoria_ministerial']
+    });
+
+    // Buscar dados diversos
+    const diversos = await Diversos.findOne({
+      where: { MembroId: membroId },
+      attributes: ['trabalha', 'conta_outrem', 'conta_propria']
+    });
+
+    // Montar a resposta
+    const membroCompleto = {
+      ...membro.dataValues,
+      foto: membro.foto ? `${req.protocol}://${req.get('host')}${membro.foto}` : null,
+      departamentos,
+      cargos,
+      dadosAcademicos: dadosAcademicos ? dadosAcademicos.dataValues : null,
+      dadosCristaos: dadosCristaos ? dadosCristaos.dataValues : null,
+      diversos: diversos ? diversos.dataValues : null
+    };
+
+    return res.status(200).json(membroCompleto);
+
+  } catch (error) {
+    console.error('Erro ao buscar membro:', error);
+    return res.status(500).json({ message: 'Erro interno do servidor.' });
+  }
+});
+
+
+
+
+
+
+
+
+
+
+
 // Rota para buscar membros filtrados pelo auth hierárquico (Sede/Filhal)
 router.get('/membros', auth, async (req, res) => {
   try {
@@ -289,6 +391,41 @@ router.get('/membros', auth, async (req, res) => {
 });
 
 
+
+
+// Rota básica: busca todos os membros (sem filtro de Sede/Filial e sem detalhes extras)
+router.get('/membros-todos', async (req, res) => {
+  try {
+    const membros = await Membros.findAll({
+      attributes: [
+        'id',
+        'nome',
+        'foto',
+        'genero',
+        'data_nascimento',
+        'estado_civil',
+        'telefone',
+        'email',
+        'endereco_cidade',
+        'profissao',
+        'batizado',
+        'ativo'
+      ],
+      order: [['id', 'DESC']]
+    });
+
+    // Se quiser incluir a URL completa da foto também:
+    const membrosComFotoUrl = membros.map(membro => ({
+      ...membro.dataValues,
+      foto: membro.foto ? `${req.protocol}://${req.get('host')}${membro.foto}` : null,
+    }));
+
+    return res.status(200).json(membrosComFotoUrl);
+  } catch (error) {
+    console.error('Erro ao buscar todos os membros:', error);
+    return res.status(500).json({ message: 'Erro interno do servidor.' });
+  }
+});
 
 
 
@@ -505,6 +642,128 @@ const upload = multer({ storage });
 
 
 
+
+// Rota para atualizar membro com foto, departamentos e tabelas relacionadas
+router.put('/membros/:id', auth, upload.single('foto'), async (req, res) => {
+  try {
+    const membroId = req.params.id;
+    const {
+      nome, genero, data_nascimento, estado_civil, bi, telefone, email,
+      endereco_rua, endereco_bairro, endereco_cidade, endereco_provincia,
+      grau_academico, profissao, batizado, data_batismo, ativo, CargosIds,
+      DepartamentosIds,
+      habilitacoes, especialidades, estudo_teologico, local_formacao,
+      consagrado, data_consagracao, categoria_ministerial,
+      trabalha, conta_outrem, conta_propria
+    } = req.body;
+
+    const membro = await Membros.findByPk(membroId);
+    if (!membro) return res.status(404).json({ message: 'Membro não encontrado.' });
+
+    // Função para converter datas inválidas em null
+    const parseDate = (dateStr) => {
+      if (!dateStr || dateStr === '' || dateStr === 'Invalid date') return null;
+      return dateStr;
+    };
+
+    // Função para converter arrays de IDs
+    const parseIds = (input) => {
+      if (!input) return [];
+      if (Array.isArray(input)) return input.map(id => parseInt(id, 10));
+      return input.split(',').map(id => parseInt(id, 10));
+    };
+    const cargosArray = parseIds(CargosIds);
+    const departamentosArray = parseIds(DepartamentosIds);
+
+    // Validação mínima: nome e gênero sempre
+    if (!nome || !genero) {
+      return res.status(400).json({ message: 'Nome e gênero são obrigatórios.' });
+    }
+
+    const fotoCaminho = req.file ? `/uploads/fotos/${req.file.filename}` : membro.foto;
+
+    // Atualiza dados do membro
+    await membro.update({
+      nome,
+      foto: fotoCaminho,
+      genero,
+      data_nascimento: parseDate(data_nascimento),
+      estado_civil,
+      bi: bi && bi.trim() !== '' ? bi.trim() : null, // Evita conflito UNIQUE
+      telefone,
+      email,
+      endereco_rua,
+      endereco_bairro,
+      endereco_cidade,
+      endereco_provincia,
+      grau_academico,
+      profissao,
+      batizado: batizado === true || batizado === 'true',
+      data_batismo: parseDate(data_batismo),
+      ativo: ativo === true || ativo === 'true',
+    });
+
+    // Atualiza cargos se vierem
+    if (CargosIds) {
+      await CargoMembro.destroy({ where: { MembroId: membroId } });
+      if (cargosArray.length > 0) {
+        const registrosCargo = cargosArray.map(cargoId => ({ MembroId: membroId, CargoId: cargoId }));
+        await CargoMembro.bulkCreate(registrosCargo);
+      }
+    }
+
+    // Atualiza departamentos se vierem
+    if (DepartamentosIds) {
+      await DepartamentoMembros.destroy({ where: { MembroId: membroId } });
+      if (departamentosArray.length > 0) {
+        const registrosDepartamentos = departamentosArray.map(depId => ({
+          MembroId: membroId,
+          DepartamentoId: depId,
+          ativo: true,
+          data_entrada: new Date(),
+        }));
+        await DepartamentoMembros.bulkCreate(registrosDepartamentos);
+      }
+    }
+
+    // Atualiza dados acadêmicos
+    const dadosAcademicos = await DadosAcademicos.findOne({ where: { MembroId: membroId } });
+    if (dadosAcademicos) {
+      await dadosAcademicos.update({
+        habilitacoes: habilitacoes || null,
+        especialidades: especialidades || null,
+        estudo_teologico: estudo_teologico || null,
+        local_formacao: local_formacao || null,
+      });
+    }
+
+    // Atualiza dados cristãos
+    const dadosCristaos = await DadosCristaos.findOne({ where: { MembroId: membroId } });
+    if (dadosCristaos) {
+      await dadosCristaos.update({
+        consagrado: consagrado === true || consagrado === 'true',
+        data_consagracao: parseDate(data_consagracao),
+        categoria_ministerial: categoria_ministerial || null,
+      });
+    }
+
+    // Atualiza diversos
+    const diversos = await Diversos.findOne({ where: { MembroId: membroId } });
+    if (diversos) {
+      await diversos.update({
+        trabalha: trabalha === true || trabalha === 'true',
+        conta_outrem: conta_outrem === true || conta_outrem === 'true',
+        conta_propria: conta_propria === true || conta_propria === 'true',
+      });
+    }
+
+    return res.status(200).json({ message: 'Membro atualizado com sucesso!', membro });
+
+  } catch (error) {
+    console.error('Erro ao atualizar membro:', error);
+    return res.status(500).json({ message: 'Erro interno no servidor.' });
+  }
+});
 
 
 
@@ -2238,6 +2497,410 @@ router.get('/membros/filtros', auth, async (req, res) => {
     return res.status(500).json({ message: 'Erro interno do servidor.' });
   }
 });
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// Rota para buscar todos os membros + filtros únicos (filtrados por Sede/Filhal)
+router.get('/membros-filtros', auth, async (req, res) => {
+  try {
+    const { SedeId, FilhalId } = req.usuario;
+
+    // Filtro hierárquico
+    let filtro = { ativo: 1 };
+    if (FilhalId) {
+      filtro.FilhalId = FilhalId;
+    } else if (SedeId) {
+      filtro.SedeId = SedeId;
+    }
+
+    const membros = await Membros.findAll({
+      where: filtro,
+      attributes: [
+        'id',
+        'nome',
+        'foto',
+        'genero',
+        'data_nascimento',
+        'estado_civil',
+        'telefone',
+        'email',
+        'endereco_cidade',
+        'profissao',
+        'batizado',
+        'ativo',
+        'SedeId',
+        'FilhalId'
+      ],
+      order: [['id', 'DESC']]
+    });
+
+    const membrosComFotoUrl = membros.map(membro => {
+      // Calcula idade
+      let idade = null;
+      if (membro.data_nascimento) {
+        const hoje = new Date();
+        const nascimento = new Date(membro.data_nascimento);
+        idade = hoje.getFullYear() - nascimento.getFullYear();
+        const m = hoje.getMonth() - nascimento.getMonth();
+        if (m < 0 || (m === 0 && hoje.getDate() < nascimento.getDate())) {
+          idade--;
+        }
+      }
+
+      return {
+        ...membro.dataValues,
+        idade,
+        batizadoStatus: membro.batizado ? "Sim" : "Não",
+        foto: membro.foto ? `${req.protocol}://${req.get('host')}${membro.foto}` : null,
+      };
+    });
+
+    // Função para contar membros por valor
+    const contarPor = (campo) => {
+      const contagem = {};
+      membros.forEach(m => {
+        let valor = m[campo];
+        if (campo === "batizado") valor = m.batizado ? "Sim" : "Não";
+        if (valor) contagem[valor] = (contagem[valor] || 0) + 1;
+      });
+      return Object.entries(contagem).map(([valor, qtd]) => `${valor} (${qtd} membros)`);
+    };
+
+    // Filtros com contagem
+    const generos = contarPor("genero");
+    const estadosCivis = contarPor("estado_civil");
+    const profissoes = contarPor("profissao");
+
+    // Faixas etárias predefinidas
+    const idades = ["0-18", "19-30", "31-50", "51+"].map(faixa => {
+      let qtd = 0;
+      membrosComFotoUrl.forEach(m => {
+        if (m.idade !== null) {
+          const idade = m.idade;
+          const corresponde =
+            (faixa === "0-18" && idade <= 18) ||
+            (faixa === "19-30" && idade >= 19 && idade <= 30) ||
+            (faixa === "31-50" && idade >= 31 && idade <= 50) ||
+            (faixa === "51+" && idade >= 51);
+          if (corresponde) qtd++;
+        }
+      });
+      return `${faixa} (${qtd} membros)`;
+    });
+
+    // Batizado
+    const batizados = ["Sim", "Não"].map(status => {
+      const qtd = membrosComFotoUrl.filter(m => m.batizadoStatus === status).length;
+      return `${status} (${qtd} membros)`;
+    });
+
+    return res.status(200).json({
+      membros: membrosComFotoUrl,
+      filtros: {
+        generos,
+        estadosCivis,
+        profissoes,
+        idades,
+        batizados
+      }
+    });
+  } catch (error) {
+    console.error('Erro ao buscar membros e filtros:', error);
+    return res.status(500).json({ message: 'Erro interno do servidor.' });
+  }
+});
+
+
+
+
+
+
+
+
+
+
+
+
+// Rota para gerar relatório de membros com múltiplos filtros (com Sede/Filhal)
+router.post('/membros-relatorio', auth, async (req, res) => {
+  try {
+    const { 
+      generos = [], 
+      estadosCivis = [], 
+      profissoes = [], 
+      idades = [], 
+      batizados = [] 
+    } = req.body;
+
+    const { SedeId, FilhalId } = req.usuario;
+
+    // Monta filtro básico para Membros
+    let where = { ativo: 1 };
+    if (generos.length > 0) where.genero = generos;
+    if (estadosCivis.length > 0) where.estado_civil = estadosCivis;
+    if (profissoes.length > 0) where.profissao = profissoes;
+
+    // Filtro hierárquico
+    if (FilhalId) {
+      where.FilhalId = FilhalId;
+    } else if (SedeId) {
+      where.SedeId = SedeId;
+    }
+
+    // Busca membros conforme filtros básicos
+    let membros = await Membros.findAll({
+      where,
+      attributes: [
+        'id',
+        'nome',
+        'foto',
+        'genero',
+        'data_nascimento',
+        'estado_civil',
+        'telefone',
+        'email',
+        'endereco_cidade',
+        'profissao',
+        'batizado',
+        'ativo',
+        'SedeId',
+        'FilhalId'
+      ],
+      order: [['id', 'DESC']]
+    });
+
+    // Filtros extras (idades e batizado) aplicados em memória
+    membros = membros.filter(m => {
+      let atende = true;
+
+      // Filtrar por faixa etária
+      if (idades.length > 0 && m.data_nascimento) {
+        const hoje = new Date();
+        const nascimento = new Date(m.data_nascimento);
+        let idade = hoje.getFullYear() - nascimento.getFullYear();
+        const mes = hoje.getMonth() - nascimento.getMonth();
+        if (mes < 0 || (mes === 0 && hoje.getDate() < nascimento.getDate())) {
+          idade--;
+        }
+
+        const faixa = 
+          idade <= 18 ? "0-18" :
+          idade <= 30 ? "19-30" :
+          idade <= 50 ? "31-50" : "51+";
+
+        if (!idades.includes(faixa)) atende = false;
+      }
+
+      // Filtrar por batizado
+      if (batizados.length > 0) {
+        const status = m.batizado ? "Sim" : "Não";
+        if (!batizados.includes(status)) atende = false;
+      }
+
+      return atende;
+    });
+
+    // Monta resposta final
+    const membrosComFotoUrl = membros.map(membro => {
+      // Calcula idade
+      let idade = null;
+      if (membro.data_nascimento) {
+        const hoje = new Date();
+        const nascimento = new Date(membro.data_nascimento);
+        idade = hoje.getFullYear() - nascimento.getFullYear();
+        const m = hoje.getMonth() - nascimento.getMonth();
+        if (m < 0 || (m === 0 && hoje.getDate() < nascimento.getDate())) {
+          idade--;
+        }
+      }
+
+      return {
+        ...membro.dataValues,
+        idade,
+        batizadoStatus: membro.batizado ? "Sim" : "Não",
+        foto: membro.foto ? `${req.protocol}://${req.get('host')}${membro.foto}` : null,
+      };
+    });
+
+    return res.status(200).json(membrosComFotoUrl);
+  } catch (error) {
+    console.error('Erro ao gerar relatório de membros:', error);
+    return res.status(500).json({ message: 'Erro interno do servidor.' });
+  }
+});
+
+
+
+
+
+
+
+
+// Rota para histórico de contribuições de um membro
+router.get('/membros/:membroId/historico', auth, async (req, res) => {
+  const { membroId } = req.params;
+
+  if (!membroId) {
+    return res.status(400).json({ message: 'membroId é obrigatório' });
+  }
+
+  try {
+    const { SedeId, FilhalId } = req.usuario;
+
+    // Filtro hierárquico do usuário
+    let filtroHierarquia = {};
+    if (FilhalId) filtroHierarquia.FilhalId = FilhalId;
+    else if (SedeId) filtroHierarquia.SedeId = SedeId;
+
+    // Buscar todas as contribuições do membro
+    const contribuicoes = await Contribuicao.findAll({
+      where: { MembroId: membroId, ...filtroHierarquia },
+      include: [{ model: TipoContribuicao, attributes: ['nome'] }],
+      order: [['data', 'DESC']],
+    });
+
+    // Calcular totais por tipo de contribuição
+    const totalPorTipo = {};
+    contribuicoes.forEach(c => {
+      const tipo = c.TipoContribuicao.nome;
+      if (!totalPorTipo[tipo]) totalPorTipo[tipo] = 0;
+      totalPorTipo[tipo] += parseFloat(c.valor);
+    });
+
+    // Calcular total geral
+    const totalGeral = contribuicoes.reduce((acc, c) => acc + parseFloat(c.valor), 0);
+
+    // Determinar status do membro
+    let status = 'Novo';
+    if (contribuicoes.length > 0) {
+      const ultimaContribuicao = new Date(contribuicoes[0].data);
+      const hoje = new Date();
+      const diffMeses = (hoje.getFullYear() - ultimaContribuicao.getFullYear()) * 12 
+                       + (hoje.getMonth() - ultimaContribuicao.getMonth());
+      if (diffMeses <= 3) status = 'Regular';
+      else status = 'Irregular';
+    }
+
+    // Criar resumo por tipo de contribuição com porcentagem
+    const resumoPorTipo = Object.entries(totalPorTipo).map(([tipo, valor]) => ({
+      tipo,
+      total: valor,
+      percentual: ((valor / totalGeral) * 100).toFixed(2) + '%'
+    }));
+
+    console.log({
+      status,
+      totalGeral,
+      quantidadeContribuicoes: contribuicoes.length,
+      resumoPorTipo,
+      contribuicoes
+    })
+
+    return res.status(200).json({
+      status,
+      totalGeral,
+      quantidadeContribuicoes: contribuicoes.length,
+      resumoPorTipo,
+      contribuicoes
+    });
+
+  } catch (error) {
+    console.error('Erro ao buscar histórico do membro:', error);
+    return res.status(500).json({ message: 'Erro ao buscar histórico do membro' });
+  }
+});
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// Rota para deletar um membro e todos os seus dados relacionados
+router.delete('/membros/:id', auth, async (req, res) => {
+  try {
+    const membroId = req.params.id;
+
+    const membro = await Membros.findByPk(membroId);
+    if (!membro) return res.status(404).json({ message: 'Membro não encontrado.' });
+
+    // Remove foto do servidor se existir
+    if (membro.foto) {
+      const fotoPath = path.join(__dirname, '..', membro.foto);
+      if (fs.existsSync(fotoPath)) {
+        fs.unlinkSync(fotoPath);
+      }
+    }
+
+    // Remove cargos relacionados
+    await CargoMembro.destroy({ where: { MembroId: membroId } });
+
+    // Remove departamentos relacionados
+    await DepartamentoMembros.destroy({ where: { MembroId: membroId } });
+
+    // Remove dados acadêmicos
+    await DadosAcademicos.destroy({ where: { MembroId: membroId } });
+
+    // Remove dados cristãos
+    await DadosCristaos.destroy({ where: { MembroId: membroId } });
+
+    // Remove diversos
+    await Diversos.destroy({ where: { MembroId: membroId } });
+
+    // Finalmente remove o membro
+    await membro.destroy();
+
+    return res.status(200).json({ message: 'Membro e todos os seus dados foram removidos com sucesso!' });
+
+  } catch (error) {
+    console.error('Erro ao deletar membro:', error);
+    return res.status(500).json({ message: 'Erro interno no servidor.' });
+  }
+});
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

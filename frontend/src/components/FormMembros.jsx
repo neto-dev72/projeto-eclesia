@@ -13,7 +13,7 @@ import {
 } from '@mui/material';
 import api from '../api/axiosConfig';
 
-export default function FormMembros({ onSuccess }) {
+export default function FormMembros({ onSuccess, membroData }) {
   const [formData, setFormData] = useState({
     nome: '',
     foto: null,
@@ -50,6 +50,20 @@ export default function FormMembros({ onSuccess }) {
   const [departamentos, setDepartamentos] = useState([]);
   const [mensagem, setMensagem] = useState({ tipo: '', texto: '' });
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (membroData) {
+      setFormData({
+        ...formData,
+        ...membroData,
+        CargosIds: membroData.CargosIds || [],
+        DepartamentosIds: membroData.DepartamentosIds || [],
+        foto: null
+      });
+      if (membroData.foto) setPreviewFoto(membroData.foto);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [membroData]);
 
   useEffect(() => {
     const fetchCargos = async () => {
@@ -98,6 +112,7 @@ export default function FormMembros({ onSuccess }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    // Validação mínima
     if (!formData.nome || !formData.genero) {
       setMensagem({
         tipo: 'error',
@@ -123,64 +138,95 @@ export default function FormMembros({ onSuccess }) {
         }
       });
 
-      const res = await api.post('/membros', data, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
+      let res;
+      if (membroData && membroData.id) {
+        res = await api.put(`/membros/${membroData.id}`, data, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
+      } else {
+        res = await api.post('/membros', data, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
+      }
 
       setMensagem({
         tipo: 'success',
-        texto: res.data.message || 'Membro cadastrado com sucesso!',
+        texto: res.data.message || (membroData ? 'Membro atualizado com sucesso!' : 'Membro cadastrado com sucesso!'),
       });
 
-      setFormData({
-        nome: '',
-        foto: null,
-        genero: '',
-        data_nascimento: '',
-        estado_civil: '',
-        bi: '',
-        telefone: '',
-        email: '',
-        endereco_rua: '',
-        endereco_bairro: '',
-        endereco_cidade: '',
-        endereco_provincia: '',
-        batizado: false,
-        data_batismo: '',
-        ativo: true,
-        CargosIds: [],
-        DepartamentosIds: [],
-        habilitacoes: '',
-        especialidades: '',
-        estudo_teologico: '',
-        local_formacao: '',
-        profissao: '',
-        consagrado: false,
-        data_consagracao: '',
-        categoria_ministerial: '',
-        trabalha: false,
-        conta_outrem: false,
-        conta_propria: false,
-      });
-
-      setPreviewFoto(null);
+      if (!membroData) {
+        setFormData({
+          nome: '',
+          foto: null,
+          genero: '',
+          data_nascimento: '',
+          estado_civil: '',
+          bi: '',
+          telefone: '',
+          email: '',
+          endereco_rua: '',
+          endereco_bairro: '',
+          endereco_cidade: '',
+          endereco_provincia: '',
+          batizado: false,
+          data_batismo: '',
+          ativo: true,
+          CargosIds: [],
+          DepartamentosIds: [],
+          habilitacoes: '',
+          especialidades: '',
+          estudo_teologico: '',
+          local_formacao: '',
+          profissao: '',
+          consagrado: false,
+          data_consagracao: '',
+          categoria_ministerial: '',
+          trabalha: false,
+          conta_outrem: false,
+          conta_propria: false,
+        });
+        setPreviewFoto(null);
+      }
 
       if (onSuccess) onSuccess();
     } catch (err) {
-      console.error('Erro ao cadastrar membro:', err.response?.data || err.message);
+      console.error('Erro ao salvar membro:', err.response?.data || err.message);
       setMensagem({
         tipo: 'error',
-        texto: err.response?.data?.message || 'Erro ao cadastrar membro.',
+        texto: err.response?.data?.message || 'Erro ao salvar membro.',
       });
     } finally {
       setLoading(false);
     }
   };
 
-  const commonInputStyles = {
-    input: { color: 'white' },
-    svg: { color: 'white' },
+  const selectStyles = {
+    MenuProps: { PaperProps: { sx: { bgcolor: '#263238', color: 'white' } } },
+    sx: { color: 'white' },
   };
+
+  const habilitacoesOptions = [
+    'Ensino Primário',
+    'Ensino Secundário / Médio',
+    'Técnico Profissional',
+    'Licenciatura / Universitário',
+    'Mestrado',
+    'Doutorado',
+    'Não sabe',
+  ];
+
+  const categoriaMinisterialOptions = [
+    'Pastor',
+    'Evangelista',
+    'Diácono',
+    'Presbítero',
+    'Missionário',
+    'Ancião',
+    'Líder de Jovens',
+    'Líder de Crianças',
+    'Ministro de Louvor',
+    'Outro',
+  ];
 
   return (
     <Box
@@ -191,6 +237,7 @@ export default function FormMembros({ onSuccess }) {
     >
       {mensagem.texto && <Alert severity={mensagem.tipo} sx={{ mb: 2 }}>{mensagem.texto}</Alert>}
 
+      {/* DADOS PESSOAIS */}
       <Typography variant="h6" sx={{ mt: 2, mb: 1, color: '#b3e5fc' }}>Dados Pessoais</Typography>
       <Divider sx={{ mb: 2, borderColor: '#b3e5fc' }} />
 
@@ -212,7 +259,7 @@ export default function FormMembros({ onSuccess }) {
           component="label"
           sx={{ mr: 2, color: 'white', backgroundColor: '#1976d2', '&:hover': { backgroundColor: '#1565c0' } }}
         >
-          {formData.foto ? 'Alterar Foto' : 'Selecionar Foto'}
+          {formData.foto || previewFoto ? 'Alterar Foto' : 'Selecionar Foto'}
           <input type="file" name="foto" accept="image/*" hidden onChange={handleChange} />
         </Button>
         {previewFoto && (
@@ -236,10 +283,7 @@ export default function FormMembros({ onSuccess }) {
         required
         InputLabelProps={{ style: { color: '#b3e5fc' } }}
         inputProps={{ style: { color: 'white' } }}
-        SelectProps={{
-          MenuProps: { PaperProps: { sx: { bgcolor: '#263238', color: 'white' } } },
-          sx: { color: 'white' },
-        }}
+        SelectProps={selectStyles}
       >
         <MenuItem value="Masculino">Masculino</MenuItem>
         <MenuItem value="Feminino">Feminino</MenuItem>
@@ -256,7 +300,7 @@ export default function FormMembros({ onSuccess }) {
         InputLabelProps={{ shrink: true, style: { color: '#b3e5fc' } }}
         inputProps={{ style: { color: 'white' } }}
         margin="normal"
-        sx={{ svg: { color: 'white' } }}
+        sx={{ '& .MuiSvgIcon-root': { color: 'white' } }}
       />
 
       <TextField
@@ -269,10 +313,7 @@ export default function FormMembros({ onSuccess }) {
         margin="normal"
         InputLabelProps={{ style: { color: '#b3e5fc' } }}
         inputProps={{ style: { color: 'white' } }}
-        SelectProps={{
-          MenuProps: { PaperProps: { sx: { bgcolor: '#263238', color: 'white' } } },
-          sx: { color: 'white' },
-        }}
+        SelectProps={selectStyles}
       >
         <MenuItem value="Solteiro">Solteiro</MenuItem>
         <MenuItem value="Casado">Casado</MenuItem>
@@ -280,7 +321,6 @@ export default function FormMembros({ onSuccess }) {
         <MenuItem value="Viúvo">Viúvo</MenuItem>
       </TextField>
 
-      {/* Campos simples */}
       {['bi', 'telefone', 'email', 'endereco_rua', 'endereco_bairro', 'endereco_cidade', 'endereco_provincia'].map((campo) => (
         <TextField
           key={campo}
@@ -296,24 +336,6 @@ export default function FormMembros({ onSuccess }) {
       ))}
 
       <FormControlLabel
-        control={<Checkbox name="batizado" checked={formData.batizado} onChange={handleChange} sx={{ color: 'white' }} />}
-        label={<Typography sx={{ color: '#b3e5fc' }}>Batizado</Typography>}
-      />
-
-      <TextField
-        fullWidth
-        label="Data do Batismo"
-        name="data_batismo"
-        type="date"
-        value={formData.data_batismo}
-        onChange={handleChange}
-        InputLabelProps={{ shrink: true, style: { color: '#b3e5fc' } }}
-        inputProps={{ style: { color: 'white' } }}
-        margin="normal"
-        sx={{ svg: { color: 'white' } }}
-      />
-
-      <FormControlLabel
         control={<Checkbox name="ativo" checked={formData.ativo} onChange={handleChange} sx={{ color: 'white' }} />}
         label={<Typography sx={{ color: '#b3e5fc' }}>Ativo</Typography>}
       />
@@ -326,11 +348,7 @@ export default function FormMembros({ onSuccess }) {
         value={formData.CargosIds}
         onChange={handleChange}
         margin="normal"
-        SelectProps={{
-          multiple: true,
-          MenuProps: { PaperProps: { sx: { bgcolor: '#263238', color: 'white' } } },
-          sx: { color: 'white' },
-        }}
+        SelectProps={{ multiple: true, ...selectStyles }}
         InputLabelProps={{ style: { color: '#b3e5fc' } }}
         inputProps={{ style: { color: 'white' } }}
       >
@@ -347,19 +365,92 @@ export default function FormMembros({ onSuccess }) {
         value={formData.DepartamentosIds}
         onChange={handleChange}
         margin="normal"
-        SelectProps={{
-          multiple: true,
-          MenuProps: { PaperProps: { sx: { bgcolor: '#263238', color: 'white' } } },
-          sx: { color: 'white' },
-        }}
+        SelectProps={{ multiple: true, ...selectStyles }}
         InputLabelProps={{ style: { color: '#b3e5fc' } }}
         inputProps={{ style: { color: 'white' } }}
       >
         {departamentos.map((dep) => <MenuItem key={dep.id} value={dep.id}>{dep.nome}</MenuItem>)}
       </TextField>
 
-      {/* Demais campos */}
-      {['habilitacoes', 'especialidades', 'estudo_teologico', 'local_formacao', 'profissao', 'data_consagracao', 'categoria_ministerial'].map((campo) => (
+      {/* DADOS CRISTÃOS */}
+      <Typography variant="h6" sx={{ mt: 4, mb: 1, color: '#b3e5fc' }}>Dados Cristãos</Typography>
+      <Divider sx={{ mb: 2, borderColor: '#b3e5fc' }} />
+
+      <FormControlLabel
+        control={<Checkbox name="batizado" checked={formData.batizado} onChange={handleChange} sx={{ color: 'white' }} />}
+        label={<Typography sx={{ color: '#b3e5fc' }}>Batizado</Typography>}
+      />
+
+      <TextField
+        fullWidth
+        label="Data do Batismo"
+        name="data_batismo"
+        type="date"
+        value={formData.data_batismo}
+        onChange={handleChange}
+        InputLabelProps={{ shrink: true, style: { color: '#b3e5fc' } }}
+        inputProps={{ style: { color: 'white' } }}
+        margin="normal"
+        sx={{ '& .MuiSvgIcon-root': { color: 'white' } }}
+      />
+
+      <FormControlLabel
+        control={<Checkbox name="consagrado" checked={formData.consagrado} onChange={handleChange} sx={{ color: 'white' }} />}
+        label={<Typography sx={{ color: '#b3e5fc' }}>Consagrado</Typography>}
+      />
+
+      <TextField
+        fullWidth
+        label="Data de Consagração"
+        name="data_consagracao"
+        type="date"
+        value={formData.data_consagracao}
+        onChange={handleChange}
+        InputLabelProps={{ shrink: true, style: { color: '#b3e5fc' } }}
+        inputProps={{ style: { color: 'white' } }}
+        margin="normal"
+        sx={{ '& .MuiSvgIcon-root': { color: 'white' } }}
+      />
+
+      <TextField
+        select
+        fullWidth
+        label="Categoria Ministerial"
+        name="categoria_ministerial"
+        value={formData.categoria_ministerial}
+        onChange={handleChange}
+        margin="normal"
+        InputLabelProps={{ style: { color: '#b3e5fc' } }}
+        inputProps={{ style: { color: 'white' } }}
+        SelectProps={selectStyles}
+      >
+        {categoriaMinisterialOptions.map((opt, idx) => (
+          <MenuItem key={idx} value={opt}>{opt}</MenuItem>
+        ))}
+      </TextField>
+
+      {/* DADOS ACADÊMICOS */}
+      <Typography variant="h6" sx={{ mt: 4, mb: 1, color: '#b3e5fc' }}>Dados Acadêmicos</Typography>
+      <Divider sx={{ mb: 2, borderColor: '#b3e5fc' }} />
+
+      <TextField
+        select
+        fullWidth
+        label="Habilitação"
+        name="habilitacoes"
+        value={formData.habilitacoes}
+        onChange={handleChange}
+        margin="normal"
+        InputLabelProps={{ style: { color: '#b3e5fc' } }}
+        inputProps={{ style: { color: 'white' } }}
+        SelectProps={selectStyles}
+      >
+        {habilitacoesOptions.map((opt, idx) => (
+          <MenuItem key={idx} value={opt}>{opt}</MenuItem>
+        ))}
+      </TextField>
+
+      {['especialidades', 'estudo_teologico', 'local_formacao', 'profissao'].map((campo) => (
         <TextField
           key={campo}
           fullWidth
@@ -370,12 +461,14 @@ export default function FormMembros({ onSuccess }) {
           margin="normal"
           InputLabelProps={{ style: { color: '#b3e5fc' } }}
           inputProps={{ style: { color: 'white' } }}
-          type={campo.includes('data') ? 'date' : 'text'}
-          sx={campo.includes('data') ? { svg: { color: 'white' } } : {}}
         />
       ))}
 
-      {['consagrado', 'trabalha', 'conta_outrem', 'conta_propria'].map((campo) => (
+      {/* DIVERSOS */}
+      <Typography variant="h6" sx={{ mt: 4, mb: 1, color: '#b3e5fc' }}>Diversos</Typography>
+      <Divider sx={{ mb: 2, borderColor: '#b3e5fc' }} />
+
+      {['trabalha', 'conta_outrem', 'conta_propria'].map((campo) => (
         <FormControlLabel
           key={campo}
           control={<Checkbox name={campo} checked={formData[campo]} onChange={handleChange} sx={{ color: 'white' }} />}
@@ -392,7 +485,7 @@ export default function FormMembros({ onSuccess }) {
         disabled={loading}
         startIcon={loading ? <CircularProgress size={20} /> : null}
       >
-        {loading ? 'Salvando...' : 'Cadastrar Membro'}
+        {loading ? 'Salvando...' : membroData ? 'Atualizar Membro' : 'Cadastrar Membro'}
       </Button>
     </Box>
   );

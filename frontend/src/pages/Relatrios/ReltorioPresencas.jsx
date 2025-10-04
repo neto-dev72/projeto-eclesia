@@ -127,13 +127,13 @@ export default function RelatorioPresencasPremium() {
     <Box sx={{
       minHeight: '100vh',
       p: { xs: 2, md: 6 },
-      background: 'linear-gradient(135deg,#1e3c72 0%, #2a5298 100%)',
+      background: 'linear-gradient(to bottom, #1e3c72, #2a5298)',
       display: 'flex',
       justifyContent: 'center'
     }}>
       <motion.div initial={{ opacity: 0, y: 60 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8 }} style={{ width: '100%', maxWidth: 1100 }}>
-        <Card elevation={25} sx={{ borderRadius: 5, overflow: 'hidden', backdropFilter: 'blur(10px)', backgroundColor: 'rgba(255,255,255,0.05)' }}>
-          <Box sx={{ p: 4, background: 'linear-gradient(90deg, #0f2027 0%, #203a43 50%, #2c5364 100%)' }}>
+        <Card elevation={20} sx={{ borderRadius: 5, overflow: 'hidden', backdropFilter: 'blur(10px)', backgroundColor: 'rgba(255,255,255,0.05)' }}>
+          <Box sx={{ p: 4, background: 'linear-gradient(90deg,#0f2027,#203a43,#2c5364)' }}>
             <Typography variant="h4" fontWeight="bold" color="white" textAlign="center" sx={{ textShadow: '2px 2px 8px rgba(0,0,0,0.5)' }}>
               <MonetizationOn sx={{ mr: 1 }} /> Relatório Premium de Presenças & Contribuições
             </Typography>
@@ -196,7 +196,6 @@ export default function RelatorioPresencasPremium() {
 
             {!loading && selectedTipoCulto && (
               <>
-                {/* Nome do Tipo de Culto */}
                 {nomeTipoCulto && (
                   <Typography variant="h5" fontWeight="bold" textAlign="center" mb={4} color="#ffd200" sx={{ textShadow: '2px 2px 6px rgba(0,0,0,0.4)' }}>
                     Tipo de Culto: {nomeTipoCulto}
@@ -275,17 +274,13 @@ export default function RelatorioPresencasPremium() {
                             <TableRow key={c.id} sx={{ '&:hover': { backgroundColor: 'rgba(255,255,255,0.1)', transform: 'scale(1.02)', transition: '0.3s' } }}>
                               <TableCell>{dayjs(c.data).format('DD/MM/YYYY')}</TableCell>
                               <TableCell>
-                                <Stack direction="row" alignItems="center" spacing={1}>
-                                  <Avatar sx={{ width: 32, height: 32, bgcolor:'#ffd200', color:'#000', fontWeight:'bold' }}>
-                                    {c.Membro ? c.Membro.nome.charAt(0) : '?'}
-                                  </Avatar>
-                                  {c.Membro ? c.Membro.nome : 'Não informado'}
+                                <Stack direction="row" spacing={1} alignItems="center">
+                                  <Avatar sx={{ bgcolor: '#1e3c72' }}>{c.Membro?.nome?.charAt(0)}</Avatar>
+                                  <Typography>{c.Membro?.nome || '-'}</Typography>
                                 </Stack>
                               </TableCell>
-                              <TableCell>{c.TipoContribuicao.nome}</TableCell>
-                              <TableCell sx={{ fontWeight: 'bold', color: '#ffd200' }}>
-                                {parseFloat(c.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                              </TableCell>
+                              <TableCell>{c.TipoContribuicao?.nome || '-'}</TableCell>
+                              <TableCell>Kz {parseFloat(c.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
                               <TableCell>{c.descricao || '-'}</TableCell>
                             </TableRow>
                           ))}

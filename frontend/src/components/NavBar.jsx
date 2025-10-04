@@ -84,7 +84,7 @@ export default function Navbar() {
 
   const relatoriosAdministrativos = [
     { path: '/gestao/RelatorioPresencas', label: 'Relatório de Presenças por Cultos', icon: <EventIcon /> },
-    { path: '/gestao/relatorioEstatistico', label: 'Relatórios Estatísticos dos Membros', icon: <PeopleIcon /> },
+    { path: '/gestao/relatorioSede', label: 'Relatórios Estatísticos dos Membros', icon: <PeopleIcon /> },
   ];
 
   useEffect(() => {

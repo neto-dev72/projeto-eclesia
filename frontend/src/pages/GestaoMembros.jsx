@@ -7,7 +7,6 @@ import {
   TextField,
   Box,
   List,
-  ListItem,
   ListItemAvatar,
   Avatar,
   ListItemText,
@@ -37,11 +36,8 @@ import { motion } from "framer-motion";
 import api from "../api/axiosConfig";
 import FormMembros from "../components/FormMembros";
 import CartaoMembros from "../components/CartaoMembros";
-
-/**
- * Versão: premium++ cinematográfica
- * Substitua diretamente seu componente atual por este arquivo.
- */
+import PerfilMembros from "../components/PerfilMembro";
+import HistoricoMembro from "../components/HistoricoMembro";
 
 export default function GestaoMembros() {
   const theme = useTheme();
@@ -53,7 +49,12 @@ export default function GestaoMembros() {
   const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
   const [openMembroModal, setOpenMembroModal] = useState(false);
   const [openCartaoModal, setOpenCartaoModal] = useState(false);
+  const [openPerfilModal, setOpenPerfilModal] = useState(false);
+  const [openHistoricoModal, setOpenHistoricoModal] = useState(false);
   const [membroSelecionado, setMembroSelecionado] = useState(null);
+  const [perfilMembro, setPerfilMembro] = useState(null);
+  const [historicoMembro, setHistoricoMembro] = useState(null);
+  const [membroEditar, setMembroEditar] = useState(null); // Para edição
 
   useEffect(() => {
     if (!document.getElementById("gf-poppins")) {
@@ -106,25 +107,51 @@ export default function GestaoMembros() {
     }
   };
 
-  const handleEditarMembro = (id) => {
-    setSnackbar({ open: true, message: `Editar membro (a implementar edição): ${id}`, severity: "info" });
+  const handleEditarMembro = (membro) => {
+    setMembroEditar(membro);
+    setOpenMembroModal(true);
   };
 
-  const handleVerHistorico = (id) => {
-    setSnackbar({ open: true, message: `Histórico do membro (a implementar): ${id}`, severity: "info" });
+  const handleVerHistorico = async (membro) => {
+    try {
+      const res = await api.get(`/membros/${membro.id}/historico`);
+      setHistoricoMembro(res.data);
+      setOpenHistoricoModal(true);
+    } catch (err) {
+      console.error(err);
+      setSnackbar({ open: true, message: "Erro ao carregar histórico do membro.", severity: "error" });
+    }
   };
 
-  const handleVerPerfil = (membro) => {
-    setSnackbar({ open: true, message: `Visualizar perfil: ${membro.nome}`, severity: "info" });
+  const handleVerPerfil = async (membro) => {
+    try {
+      const res = await api.get(`/perfil-membros/${membro.id}`);
+      setPerfilMembro(res.data);
+      setOpenPerfilModal(true);
+    } catch (err) {
+      console.error(err);
+      setSnackbar({ open: true, message: "Erro ao carregar perfil do membro.", severity: "error" });
+    }
   };
 
   const handleExtrairCartao = (membro) => {
     setMembroSelecionado(membro);
     setOpenCartaoModal(true);
   };
+
   const closeCartaoModal = () => {
     setOpenCartaoModal(false);
     setMembroSelecionado(null);
+  };
+
+  const closePerfilModal = () => {
+    setOpenPerfilModal(false);
+    setPerfilMembro(null);
+  };
+
+  const closeHistoricoModal = () => {
+    setOpenHistoricoModal(false);
+    setHistoricoMembro(null);
   };
 
   const closeSnack = () => setSnackbar((s) => ({ ...s, open: false }));
@@ -132,6 +159,15 @@ export default function GestaoMembros() {
   const listItemVariants = {
     hidden: { opacity: 0, y: 18, scale: 0.985 },
     show: (i) => ({ opacity: 1, y: 0, scale: 1, transition: { delay: i * 0.04, type: "spring", stiffness: 160, damping: 16 } }),
+  };
+
+  const modalPaperSx = {
+    borderRadius: 3,
+    overflow: "hidden",
+    background: "linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01))",
+    backdropFilter: "blur(10px)",
+    border: "1px solid rgba(124,77,255,0.08)",
+    color: "#e6eef8",
   };
 
   return (
@@ -175,7 +211,7 @@ export default function GestaoMembros() {
           <Box sx={{ display: "flex", gap: 2, alignItems: "center" }}>
             <Button
               startIcon={<AddIcon />}
-              onClick={() => setOpenMembroModal(true)}
+              onClick={() => { setMembroEditar(null); setOpenMembroModal(true); }}
               sx={{
                 borderRadius: "999px",
                 px: 3,
@@ -333,7 +369,7 @@ export default function GestaoMembros() {
 
                       <Tooltip title="Histórico" arrow>
                         <IconButton
-                          onClick={() => handleVerHistorico(membro.id)}
+                          onClick={() => handleVerHistorico(membro)}
                           sx={{
                             bgcolor: "rgba(59,130,246,0.04)",
                             color: "#60a5fa",
@@ -346,7 +382,7 @@ export default function GestaoMembros() {
 
                       <Tooltip title="Editar" arrow>
                         <IconButton
-                          onClick={() => handleEditarMembro(membro.id)}
+                          onClick={() => handleEditarMembro(membro)}
                           sx={{
                             bgcolor: "rgba(124,77,255,0.06)",
                             color: "#7c4dff",
@@ -376,40 +412,40 @@ export default function GestaoMembros() {
             )}
           </List>
         )}
+
       </Container>
 
-      {/* Modal de Cadastro/Edição de membro */}
+      {/* ================== MODAIS ================== */}
+
+      {/* Modal Cadastro / Edição */}
       <Dialog
         open={openMembroModal}
-        onClose={() => setOpenMembroModal(false)}
+        onClose={() => { setOpenMembroModal(false); setMembroEditar(null); }}
         maxWidth="md"
         fullWidth
-        PaperProps={{
-          sx: {
-            borderRadius: 3,
-            overflow: "hidden",
-            background: "linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01))",
-            backdropFilter: "blur(10px)",
-            border: "1px solid rgba(124,77,255,0.08)",
-            color: "#e6eef8",
-          },
-        }}
+        PaperProps={{ sx: modalPaperSx }}
       >
         <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", px: 3, py: 1 }}>
-          <DialogTitle sx={{ m: 0, fontWeight: 800, color: "#e6eef8" }}>Cadastrar Novo Membro</DialogTitle>
-          <IconButton onClick={() => setOpenMembroModal(false)} sx={{ color: "#e6eef8" }}><CloseIcon /></IconButton>
+          <DialogTitle sx={{ m: 0, fontWeight: 800, color: "#e6eef8" }}>
+            {membroEditar ? "Editar Membro" : "Cadastrar Novo Membro"}
+          </DialogTitle>
+          <IconButton onClick={() => { setOpenMembroModal(false); setMembroEditar(null); }} sx={{ color: "#e6eef8" }}>
+            <CloseIcon />
+          </IconButton>
         </Box>
         <DialogContent dividers>
           <FormMembros
+            membroData={membroEditar}
             onSuccess={async () => {
               setOpenMembroModal(false);
+              setMembroEditar(null);
               await fetchMembros();
-              setSnackbar({ open: true, message: "Membro cadastrado com sucesso.", severity: "success" });
+              setSnackbar({ open: true, message: membroEditar ? "Membro atualizado com sucesso." : "Membro cadastrado com sucesso.", severity: "success" });
             }}
           />
         </DialogContent>
         <DialogActions sx={{ px: 3, py: 2 }}>
-          <Button onClick={() => setOpenMembroModal(false)} sx={{ textTransform: "none", color: "#e6eef8" }}>Fechar</Button>
+          <Button onClick={() => { setOpenMembroModal(false); setMembroEditar(null); }} sx={{ textTransform: "none", color: "#e6eef8" }}>Fechar</Button>
         </DialogActions>
       </Dialog>
 
@@ -429,62 +465,66 @@ export default function GestaoMembros() {
         )}
       </Dialog>
 
-      {/* Modal Confirmar Exclusão */}
+      {/* Modal Perfil */}
       <Dialog
-        open={Boolean(deletingMembro)}
-        onClose={cancelDelete}
-        PaperProps={{
-          sx: {
-            borderRadius: 3,
-            background: "linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01))",
-            backdropFilter: "blur(8px)",
-            border: "1px solid rgba(255,100,100,0.06)",
-            color: "#e6eef8",
-          },
-        }}
+        open={openPerfilModal}
+        onClose={closePerfilModal}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{ sx: modalPaperSx }}
       >
-        <DialogTitle sx={{ fontWeight: 800, color: "#ff6b6b" }}>Confirmar exclusão</DialogTitle>
-        <DialogContent>
-          <DialogContentText sx={{ color: "#e6eef8" }}>
-            Deseja realmente excluir o membro <strong>{deletingMembro?.nome}</strong>?
-          </DialogContentText>
+        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", px: 3, py: 1 }}>
+          <DialogTitle sx={{ m: 0, fontWeight: 800, color: "#e6eef8" }}>Perfil do Membro</DialogTitle>
+          <IconButton onClick={closePerfilModal} sx={{ color: "#e6eef8" }}><CloseIcon /></IconButton>
+        </Box>
+        <DialogContent dividers>
+          {perfilMembro && <PerfilMembros membro={perfilMembro} onClose={closePerfilModal} />}
         </DialogContent>
-        <DialogActions sx={{ pr: 3, pb: 2 }}>
-          <Button onClick={cancelDelete} sx={{ textTransform: "none", color: "#e6eef8" }}>Cancelar</Button>
-          <Button onClick={confirmDelete} variant="contained" color="error" sx={{ textTransform: "none" }}>Excluir</Button>
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button onClick={closePerfilModal} sx={{ textTransform: "none", color: "#e6eef8" }}>Fechar</Button>
         </DialogActions>
       </Dialog>
 
-      {/* Snackbar Premium */}
-      <Snackbar open={snackbar.open} autoHideDuration={4200} onClose={closeSnack} anchorOrigin={{ vertical: "bottom", horizontal: "center" }}>
-        <Alert
-          onClose={closeSnack}
-          severity={snackbar.severity}
-          sx={{
-            width: "100%",
-            borderRadius: 2,
-            fontWeight: 700,
-            boxShadow: "0 8px 30px rgba(2,6,23,0.6)",
-            background:
-              snackbar.severity === "success"
-                ? "linear-gradient(90deg,#2ecc71,#10ac84)"
-                : snackbar.severity === "error"
-                ? "linear-gradient(90deg,#ff6b6b,#ff4d4d)"
-                : "linear-gradient(90deg,#7c4dff,#00e5ff)",
-            color: "#fff",
-          }}
-        >
+      {/* Modal Histórico */}
+      <Dialog
+        open={openHistoricoModal}
+        onClose={closeHistoricoModal}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{ sx: modalPaperSx }}
+      >
+        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", px: 3, py: 1 }}>
+          <DialogTitle sx={{ m: 0, fontWeight: 800, color: "#e6eef8" }}>Histórico do Membro</DialogTitle>
+          <IconButton onClick={closeHistoricoModal} sx={{ color: "#e6eef8" }}><CloseIcon /></IconButton>
+        </Box>
+        <DialogContent dividers>
+          {historicoMembro && <HistoricoMembro historico={historicoMembro} onClose={closeHistoricoModal} />}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button onClick={closeHistoricoModal} sx={{ textTransform: "none", color: "#e6eef8" }}>Fechar</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Confirmar Exclusão */}
+      <Dialog open={!!deletingMembro} onClose={cancelDelete}>
+        <DialogTitle>Confirmação</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Tem certeza que deseja excluir o membro "{deletingMembro?.nome}"? Esta ação não pode ser desfeita.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={cancelDelete}>Cancelar</Button>
+          <Button onClick={confirmDelete} color="error">Excluir</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Snackbar */}
+      <Snackbar open={snackbar.open} autoHideDuration={4000} onClose={closeSnack} anchorOrigin={{ vertical: "top", horizontal: "center" }}>
+        <Alert onClose={closeSnack} severity={snackbar.severity} sx={{ width: "100%" }}>
           {snackbar.message}
         </Alert>
       </Snackbar>
-
-      <style>{`
-        @keyframes gradientFlow {
-          0% { background-position: 0% 50%; }
-          50% { background-position: 100% 50%; }
-          100% { background-position: 0% 50%; }
-        }
-      `}</style>
     </Box>
   );
 }
