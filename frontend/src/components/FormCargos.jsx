@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Container,
   Typography,
@@ -10,10 +10,20 @@ import {
 } from '@mui/material';
 import api from '../api/axiosConfig';
 
-export default function CadastrarCargo() {
+export default function CadastrarCargo({ cargo, onSuccess }) {
   const [formData, setFormData] = useState({ nome: '', descricao: '' });
   const [loading, setLoading] = useState(false);
   const [mensagem, setMensagem] = useState({ tipo: '', texto: '' });
+
+  // Preenche os campos caso seja edição
+  useEffect(() => {
+    if (cargo) {
+      setFormData({
+        nome: cargo.nome || '',
+        descricao: cargo.descricao || '',
+      });
+    }
+  }, [cargo]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -30,13 +40,23 @@ export default function CadastrarCargo() {
 
     setLoading(true);
     try {
-      const res = await api.post('/cadastrar-cargos', formData);
-      setMensagem({ tipo: 'success', texto: res.data.message || 'Cargo cadastrado com sucesso!' });
-      setFormData({ nome: '', descricao: '' });
+      let res;
+      if (cargo) {
+        // EDITAR (PUT)
+        res = await api.put(`/cargos/${cargo.id}`, formData);
+        setMensagem({ tipo: 'success', texto: res.data.message || 'Cargo atualizado com sucesso!' });
+      } else {
+        // CADASTRAR (POST)
+        res = await api.post('/cadastrar-cargos', formData);
+        setMensagem({ tipo: 'success', texto: res.data.message || 'Cargo cadastrado com sucesso!' });
+        setFormData({ nome: '', descricao: '' });
+      }
+
+      if (onSuccess) onSuccess(); // callback para fechar modal ou recarregar lista
     } catch (error) {
       setMensagem({
         tipo: 'error',
-        texto: error.response?.data?.message || 'Erro ao cadastrar o cargo.',
+        texto: error.response?.data?.message || 'Erro ao salvar o cargo.',
       });
     } finally {
       setLoading(false);
@@ -46,7 +66,7 @@ export default function CadastrarCargo() {
   return (
     <Container maxWidth="sm" sx={{ mt: 6, p: 4, boxShadow: 3, borderRadius: 2 }}>
       <Typography variant="h5" gutterBottom color="primary" fontWeight="bold">
-        Cadastrar Novo Cargo
+        {cargo ? "Editar Cargo" : "Cadastrar Novo Cargo"}
       </Typography>
 
       {mensagem.texto && (
@@ -86,7 +106,7 @@ export default function CadastrarCargo() {
           disabled={loading}
           startIcon={loading ? <CircularProgress size={20} /> : null}
         >
-          {loading ? 'Salvando...' : 'Cadastrar Cargo'}
+          {loading ? 'Salvando...' : (cargo ? 'Salvar Alterações' : 'Cadastrar Cargo')}
         </Button>
       </Box>
     </Container>

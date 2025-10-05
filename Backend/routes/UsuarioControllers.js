@@ -557,6 +557,73 @@ router.get('/lista/cargos', auth, async (req, res) => {
 
 
 
+// ==========================
+// ATUALIZAR CARGO (PUT)
+// ==========================
+router.put('/cargos/:id', auth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { nome, descricao } = req.body;
+    const { SedeId, FilhalId } = req.usuario;
+
+    // Filtro hierárquico para segurança
+    let filtroHierarquia = {};
+    if (FilhalId) {
+      filtroHierarquia.FilhalId = FilhalId;
+    } else if (SedeId) {
+      filtroHierarquia.SedeId = SedeId;
+    }
+
+    const cargo = await Cargo.findOne({
+      where: { id, ...filtroHierarquia },
+    });
+
+    if (!cargo) {
+      return res.status(404).json({ message: 'Cargo não encontrado' });
+    }
+
+    await cargo.update({ nome, descricao });
+
+    return res.status(200).json({ message: 'Cargo atualizado com sucesso', cargo });
+  } catch (error) {
+    console.error('Erro ao atualizar cargo:', error);
+    return res.status(500).json({ message: 'Erro interno ao atualizar cargo' });
+  }
+});
+
+
+// ==========================
+// DELETAR CARGO (DELETE)
+// ==========================
+router.delete('/cargos/:id', auth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { SedeId, FilhalId } = req.usuario;
+
+    // Filtro hierárquico
+    let filtroHierarquia = {};
+    if (FilhalId) {
+      filtroHierarquia.FilhalId = FilhalId;
+    } else if (SedeId) {
+      filtroHierarquia.SedeId = SedeId;
+    }
+
+    const cargo = await Cargo.findOne({
+      where: { id, ...filtroHierarquia },
+    });
+
+    if (!cargo) {
+      return res.status(404).json({ message: 'Cargo não encontrado' });
+    }
+
+    await cargo.destroy();
+
+    return res.status(200).json({ message: 'Cargo excluído com sucesso' });
+  } catch (error) {
+    console.error('Erro ao excluir cargo:', error);
+    return res.status(500).json({ message: 'Erro interno ao excluir cargo' });
+  }
+});
 
 
 
@@ -1927,11 +1994,59 @@ router.get('/usuario/status', auth, async (req, res) => {
 
 
 
+// ==========================
+// EDITAR DEPARTAMENTO (PUT)
+// ==========================
+router.put("/departamentos/:id", auth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const dados = req.body;
+
+    const departamento = await Departamentos.findByPk(id);
+    if (!departamento) {
+      return res.status(404).json({ message: "Departamento não encontrado" });
+    }
+
+    await departamento.update(dados);
+
+    return res.status(200).json({
+      message: "Departamento atualizado com sucesso",
+      departamento,
+    });
+  } catch (error) {
+    console.error("❌ Erro ao editar departamento:", error);
+    return res.status(500).json({ message: "Erro ao editar departamento" });
+  }
+});
+
+// ==========================
+// DELETAR DEPARTAMENTO (DELETE)
+// ==========================
+router.delete("/departamentos/:id", auth, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const departamento = await Departamentos.findByPk(id);
+    if (!departamento) {
+      return res.status(404).json({ message: "Departamento não encontrado" });
+    }
+
+    await departamento.destroy();
+
+    return res.status(200).json({ message: "Departamento excluído com sucesso" });
+  } catch (error) {
+    console.error("❌ Erro ao excluir departamento:", error);
+    return res.status(500).json({ message: "Erro ao excluir departamento" });
+  }
+});
+
+
+
 
 
 
 // GET - Listar departamentos filtrados por Sede/Filhal com contagem de membros
-router.get('/departamentos', auth, async (req, res) => {
+router.get('/departamentos-membros', auth, async (req, res) => {
   try {
     const { SedeId, FilhalId } = req.usuario;
 

@@ -38,10 +38,12 @@ import {
   ExpandMore,
   Brightness4,
   Brightness7,
+  Close,   // ✅ adicionado aqui do icons-material
 } from "@mui/icons-material";
 import { createTheme, ThemeProvider, styled } from "@mui/material/styles";
 import api from "../api/axiosConfig";
 import CadastrarIgrejaDono from "../components/CadastrarIgrejaDono";
+
 
 /**
  * Visual premium:
@@ -435,35 +437,43 @@ export default function GestaoIgrejas() {
           )}
 
           {/* Modal Filial + Usuario */}
-          <Modal open={modalFilhalOpen} onClose={handleCloseFilhalModal}>
-            <Box
-              sx={{
-                position: "absolute",
-                top: "50%",
-                left: "50%",
-                transform: "translate(-50%, -50%)",
-                width: { xs: "92%", sm: 620 },
-                maxHeight: "85vh",
-                bgcolor: "background.paper",
-                boxShadow: 30,
-                p: { xs: 3, sm: 4 },
-                borderRadius: 3,
-                overflowY: "auto",
-              }}
-            >
-              <Typography variant="h5" sx={{ fontWeight: 800, mb: 1 }}>
-                {selectedSede ? `Cadastrar Filial e Usuário — ${selectedSede.nome}` : "Cadastrar Filial e Usuário"}
-              </Typography>
+         {/* Modal Filial + Usuario */}
+<Modal open={modalFilhalOpen} onClose={handleCloseFilhalModal}>
+  <Box
+    sx={{
+      position: "absolute",
+      top: "50%",
+      left: "50%",
+      transform: "translate(-50%, -50%)",
+      width: { xs: "92%", sm: 620 },
+      maxHeight: "80vh",
+      bgcolor: "background.paper",
+      boxShadow: 30,
+      p: { xs: 3, sm: 4 },
+      borderRadius: 3,
+      overflowY: "auto",
+    }}
+  >
+    {/* Cabeçalho com botão de fechar */}
+    <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
+      <Typography variant="h5" sx={{ fontWeight: 800 }}>
+        {selectedSede
+          ? `Cadastrar Filial e Usuário — ${selectedSede.nome}`
+          : "Cadastrar Filial e Usuário"}
+      </Typography>
+      <IconButton onClick={handleCloseFilhalModal}>
+        <Close />
+      </IconButton>
+    </Box>
 
-              <Box sx={{ mb: 2 }}>
-                <Typography variant="body2" color="text.secondary">
-                  Preencha os dados da filial e do usuário responsável.
-                </Typography>
-              </Box>
+    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+      Preencha os dados da filial e do usuário responsável.
+    </Typography>
 
-              <CadastrarIgrejaDono sedeId={selectedSede?.id} />
-            </Box>
-          </Modal>
+    <CadastrarIgrejaDono sedeId={selectedSede?.id} />
+  </Box>
+</Modal>
+
 
           {/* Modal Nova Sede */}
           <Modal open={modalSedeOpen} onClose={handleCloseSedeModal}>

@@ -21,9 +21,14 @@ import {
   InputLabel,
   Select,
   MenuItem,
+  InputAdornment,
+  IconButton,
+  OutlinedInput,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
+import Visibility from '@mui/icons-material/Visibility';
+import VisibilityOff from '@mui/icons-material/VisibilityOff';
 import api from '../api/axiosConfig';
 import GestaoUsuarios from '../components/gestaoUsuarios';
 
@@ -40,6 +45,8 @@ export default function Perfil() {
     senha: '',
     funcao: 'usuario',
   });
+
+  const [showPassword, setShowPassword] = useState(false);
 
   // Busca dados do perfil
   const fetchPerfil = async () => {
@@ -260,17 +267,26 @@ export default function Perfil() {
                 margin="normal"
                 required
               />
-              <TextField
-                fullWidth
-                label="Senha"
-                type="password"
-                name="senha"
-                value={formUsuario.senha}
-                onChange={handleChange}
-                margin="normal"
-                placeholder={isEditMode ? 'Preencha somente se quiser alterar a senha' : ''}
-                required={!isEditMode}
-              />
+              <FormControl fullWidth margin="normal" variant="outlined">
+                <InputLabel htmlFor="senha">Senha</InputLabel>
+                <OutlinedInput
+                  id="senha"
+                  type={showPassword ? 'text' : 'password'}
+                  name="senha"
+                  value={formUsuario.senha}
+                  onChange={handleChange}
+                  placeholder={isEditMode ? 'Preencha somente se quiser alterar a senha' : ''}
+                  required={!isEditMode}
+                  endAdornment={
+                    <InputAdornment position="end">
+                      <IconButton onClick={() => setShowPassword(!showPassword)} edge="end">
+                        {showPassword ? <VisibilityOff /> : <Visibility />}
+                      </IconButton>
+                    </InputAdornment>
+                  }
+                  label="Senha"
+                />
+              </FormControl>
               <FormControl fullWidth margin="normal">
                 <InputLabel id="funcao-label">Função</InputLabel>
                 <Select

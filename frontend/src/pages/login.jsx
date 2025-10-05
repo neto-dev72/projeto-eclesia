@@ -8,7 +8,10 @@ import {
   Box,
   Alert,
   CircularProgress,
+  InputAdornment,
+  IconButton,
 } from '@mui/material';
+import { Visibility, VisibilityOff } from '@mui/icons-material';
 import api from '../api/axiosConfig';
 
 export default function Login() {
@@ -16,6 +19,7 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -145,12 +149,21 @@ export default function Login() {
             fullWidth
             label="Senha"
             name="senha"
-            type="password"
+            type={showPassword ? 'text' : 'password'}
             value={formData.senha}
             onChange={handleChange}
             required
             margin="normal"
             variant="outlined"
+            InputProps={{
+              endAdornment: (
+                <InputAdornment position="end">
+                  <IconButton onClick={() => setShowPassword(!showPassword)} edge="end">
+                    {showPassword ? <VisibilityOff /> : <Visibility />}
+                  </IconButton>
+                </InputAdornment>
+              ),
+            }}
             sx={{
               mb: 2,
               '& .MuiOutlinedInput-root': {

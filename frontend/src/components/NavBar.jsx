@@ -38,6 +38,9 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useTheme } from '@mui/material/styles';
 import api from '../api/axiosConfig';
 
+// IMPORT DA LOGO
+import logoBernet from "../assets/Logo-Bernet.png";
+
 export default function Navbar() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [userRole, setUserRole] = useState(null);
@@ -113,9 +116,22 @@ export default function Navbar() {
     navigate('/login');
   };
 
+  
+
   const drawerList = (
     <Box sx={{ width: 260, bgcolor: '#1976d2', height: '100%', color: 'white' }} role="presentation">
       <List>
+
+<Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", flexGrow: 1 }}>
+  <Box
+    component="img"
+    src={logoBernet}
+    alt="Logo Bernet"
+    sx={{ height: 140 }} // ✅ aumentei ainda mais o tamanho do logo
+  />
+</Box>
+
+
         <ListItem
           button
           component={Link}
@@ -129,8 +145,9 @@ export default function Navbar() {
           }}
         >
           <ListItemIcon sx={{ color: 'white' }}><EventIcon /></ListItemIcon>
-          <ListItemText primary="Registrar Dados" sx={{ color: 'white', fontWeight: 'bold' }} />
+          <ListItemText primary="Registrar culto" sx={{ color: 'white', fontWeight: 'bold' }} />
         </ListItem>
+    
 
         <ListItem button component={Link} to="/" onClick={toggleDrawer(false)}>
           <ListItemIcon sx={{ color: 'white' }}><HomeIcon /></ListItemIcon>
@@ -275,7 +292,7 @@ export default function Navbar() {
                   '&:hover': { bgcolor: '#ff7043', transform: 'scale(1.08)', boxShadow: '0 8px 25px rgba(0,0,0,0.5)' }
                 }}
               >
-                Dados Culto
+                Registrar Culto
               </Button>
 
               <Button color="inherit" component={Link} to="/" startIcon={<HomeIcon />} sx={{ textTransform: 'none', mx: 1 }}>

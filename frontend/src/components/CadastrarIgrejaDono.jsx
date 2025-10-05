@@ -6,8 +6,11 @@ import {
   Typography,
   MenuItem,
   Alert,
-  CircularProgress
+  CircularProgress,
+  IconButton,
+  InputAdornment
 } from '@mui/material';
+import { Visibility, VisibilityOff } from '@mui/icons-material';
 import api from '../api/axiosConfig';
 
 export default function CadastrarIgrejaDono({ sedeId }) {
@@ -26,6 +29,7 @@ export default function CadastrarIgrejaDono({ sedeId }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -162,11 +166,23 @@ export default function CadastrarIgrejaDono({ sedeId }) {
         fullWidth
         label="Senha do Usuário"
         name="usuarioSenha"
-        type="password"
+        type={showPassword ? 'text' : 'password'}
         value={formData.usuarioSenha}
         onChange={handleChange}
         required
         margin="normal"
+        InputProps={{
+          endAdornment: (
+            <InputAdornment position="end">
+              <IconButton
+                onClick={() => setShowPassword(!showPassword)}
+                edge="end"
+              >
+                {showPassword ? <VisibilityOff /> : <Visibility />}
+              </IconButton>
+            </InputAdornment>
+          )
+        }}
       />
       <TextField
         fullWidth

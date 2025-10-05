@@ -46,7 +46,7 @@ export default function GestaoDepartamentos() {
   const fetchDepartamentos = async () => {
     setLoading(true);
     try {
-      const res = await api.get("/departamentos");
+      const res = await api.get("/departamentos-membros");
       setDepartamentos(res.data);
       setFilteredDepartamentos(res.data);
     } catch (error) {
