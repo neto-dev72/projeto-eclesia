@@ -836,6 +836,115 @@ router.put('/membros/:id', auth, upload.single('foto'), async (req, res) => {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+router.get('/completos-membros/:id', auth, async (req, res) => {
+  try {
+    const membroId = req.params.id;
+
+    // 1️⃣ Buscar o membro principal
+    const membro = await Membros.findByPk(membroId);
+    if (!membro) {
+      return res.status(404).json({ message: 'Membro não encontrado.' });
+    }
+
+    // 2️⃣ Buscar os dados acadêmicos (1:1)
+    const dadosAcademicos = await DadosAcademicos.findOne({ where: { MembroId: membroId } });
+
+    // 3️⃣ Buscar os dados cristãos (1:1)
+    const dadosCristaos = await DadosCristaos.findOne({ where: { MembroId: membroId } });
+
+    // 4️⃣ Buscar os dados diversos (1:1)
+    const diversos = await Diversos.findOne({ where: { MembroId: membroId } });
+
+    // 5️⃣ Buscar os cargos (N:N)
+    const cargoMembros = await CargoMembro.findAll({ where: { MembroId: membroId } });
+    const cargos = await Promise.all(
+      cargoMembros.map(async (cm) => await Cargo.findByPk(cm.CargoId))
+    );
+
+    // 6️⃣ Buscar os departamentos (N:N)
+    const departamentoMembros = await DepartamentoMembros.findAll({ where: { MembroId: membroId } });
+    const departamentos = await Promise.all(
+      departamentoMembros.map(async (dm) => await Departamentos.findByPk(dm.DepartamentoId))
+    );
+
+    // 7️⃣ Preparar o caminho completo da foto
+    let fotoUrl = null;
+    if (membro.foto) {
+      // Ajusta o caminho absoluto, garantindo que a imagem possa ser acessada pelo cliente
+      fotoUrl = `${req.protocol}://${req.get('host')}${membro.foto.startsWith('/') ? membro.foto : '/' + membro.foto}`;
+    }
+
+    // 8️⃣ Montar o objeto final
+    const membroCompleto = {
+      ...membro.toJSON(),
+      foto: fotoUrl, // inclui a foto com URL acessível
+      dadosAcademicos: dadosAcademicos || null,
+      dadosCristaos: dadosCristaos || null,
+      diversos: diversos || null,
+      cargos: cargos.filter(Boolean),
+      departamentos: departamentos.filter(Boolean),
+    };
+
+    console.log('✅ Membro completo retornado:', membroCompleto);
+
+    res.status(200).json(membroCompleto);
+  } catch (error) {
+    console.error('❌ Erro ao buscar membro completo:', error);
+    res.status(500).json({ message: 'Erro interno ao buscar dados completos do membro.' });
+  }
+});
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 // Rota para cadastrar membros com foto, departamentos e tabelas relacionadas
 router.post('/membros', auth, upload.single('foto'), async (req, res) => {
   try {
@@ -1734,6 +1843,178 @@ router.post('/detalhes-cultos', auth, async (req, res) => {
 
 
 
+// PUT /detalhes-cultos/:id → atualiza culto + contribuições + presenças
+router.put('/detalhes-cultos/:id', auth, async (req, res) => {
+  const cultoId = req.params.id;
+  const { dataHora, tipoCultoId, contribuicoes, homens, mulheres, criancas } = req.body;
+  const { SedeId, FilhalId } = req.usuario;
+
+  const transaction = await Cultos.sequelize.transaction();
+
+  try {
+    // 1. Atualiza os dados do culto
+    await Cultos.update(
+      {
+        dataHora,
+        TipoCultoId: tipoCultoId,
+        SedeId: SedeId || null,
+        FilhalId: FilhalId || null,
+      },
+      { where: { id: cultoId }, transaction }
+    );
+
+    // 2. Remove contribuições antigas e recria
+    await Contribuicao.destroy({ where: { CultoId: cultoId }, transaction });
+
+    if (Array.isArray(contribuicoes) && contribuicoes.length > 0) {
+      const novasContribuicoes = contribuicoes.map(c => ({
+        valor: parseFloat(c.valor) || 0,
+        data: new Date(),
+        TipoContribuicaoId: c.tipoId,
+        CultoId: cultoId,
+        MembroId: c.membroId || null,
+        SedeId: SedeId || null,
+        FilhalId: FilhalId || null,
+      }));
+
+      await Contribuicao.bulkCreate(novasContribuicoes, { transaction });
+    }
+
+    // 3. Atualiza presença
+    const total = (parseInt(homens) || 0) + (parseInt(mulheres) || 0) + (parseInt(criancas) || 0);
+
+    await Presencas.update(
+      {
+        total,
+        homens: parseInt(homens) || 0,
+        mulheres: parseInt(mulheres) || 0,
+        criancas: parseInt(criancas) || 0,
+        adultos: (parseInt(homens) || 0) + (parseInt(mulheres) || 0),
+        SedeId: SedeId || null,
+        FilhalId: FilhalId || null,
+      },
+      { where: { CultoId: cultoId }, transaction }
+    );
+
+    await transaction.commit();
+    res.status(200).json({ message: 'Culto atualizado com sucesso!' });
+  } catch (error) {
+    await transaction.rollback();
+    console.error('Erro ao atualizar culto:', error);
+    res.status(500).json({ error: 'Erro ao atualizar culto.' });
+  }
+});
+
+
+
+
+
+// DELETE /detalhes-cultos/:id → deleta culto + contribuições + presenças
+router.delete('/detalhes-cultos/:id', auth, async (req, res) => {
+  const cultoId = req.params.id;
+  const transaction = await Cultos.sequelize.transaction();
+
+  try {
+    // 1. Exclui contribuições vinculadas
+    await Contribuicao.destroy({ where: { CultoId: cultoId }, transaction });
+
+    // 2. Exclui presença vinculada
+    await Presencas.destroy({ where: { CultoId: cultoId }, transaction });
+
+    // 3. Exclui o culto
+    await Cultos.destroy({ where: { id: cultoId }, transaction });
+
+    await transaction.commit();
+    res.status(200).json({ message: 'Culto e dados associados deletados com sucesso!' });
+  } catch (error) {
+    await transaction.rollback();
+    console.error('Erro ao deletar culto:', error);
+    res.status(500).json({ error: 'Erro ao deletar culto.' });
+  }
+});
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// GET /detalhes-cultos/:id → retorna culto com presenças e contribuições
+router.get("/detalhes-cultos/:id", auth, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Busca o culto básico
+    const culto = await Cultos.findByPk(id);
+    if (!culto) {
+      return res.status(404).json({ error: "Culto não encontrado" });
+    }
+
+    // Busca a presença associada
+    const presenca = await Presencas.findOne({ where: { CultoId: id } });
+
+    // Busca as contribuições associadas
+    const contribuicoes = await Contribuicao.findAll({ where: { CultoId: id } });
+
+    // Busca tipos e membros para mapear manualmente
+    const tipos = await TipoContribuicao.findAll();
+    const membros = await Membros.findAll();
+
+    // Simula o mesmo comportamento do include, mas com map manual
+    const contribuicoesCompletas = contribuicoes.map((c) => {
+      const tipo = tipos.find((t) => t.id === c.TipoContribuicaoId);
+      const membro = membros.find((m) => m.id === c.MembroId);
+
+      return {
+        ...c.toJSON(),
+        tipo: tipo ? { id: tipo.id, nome: tipo.nome } : null,
+        membro: membro ? { id: membro.id, nome: membro.nome } : null,
+      };
+    });
+
+    // Monta a resposta (formato idêntico ao que você pediu)
+    const response = {
+      id: culto.id,
+      dataHora: culto.dataHora,
+      tipoCultoId: culto.TipoCultoId,
+      homens: presenca?.homens || 0,
+      mulheres: presenca?.mulheres || 0,
+      criancas: presenca?.criancas || 0,
+      contribuicoes: contribuicoesCompletas.map((c) => ({
+        tipoId: c.tipo?.id,
+        tipoNome: c.tipo?.nome,
+        membroId: c.membro?.id || null,
+        membroNome: c.membro?.nome || null,
+        valor: c.valor,
+      })),
+    };
+
+    res.json(response);
+  } catch (error) {
+    console.error("Erro ao buscar culto:", error);
+    res.status(500).json({ error: "Erro ao buscar culto." });
+  }
+});
+
+
+
+
 
 
 
@@ -2584,35 +2865,6 @@ router.patch('/:tipo/:id/status', async (req, res) => {
 
 
 
-router.get('/membros/filtros', auth, async (req, res) => {
-  try {
-    // Busca valores únicos de todos os membros
-    const generos = await Membro.findAll({
-      attributes: [[Sequelize.fn('DISTINCT', Sequelize.col('genero')), 'genero']],
-      raw: true
-    });
-
-    const profissoes = await Membro.findAll({
-      attributes: [[Sequelize.fn('DISTINCT', Sequelize.col('profissao')), 'profissao']],
-      raw: true
-    });
-
-    const telefones = await Membros.findAll({
-      attributes: [[Sequelize.fn('DISTINCT', Sequelize.col('telefone')), 'telefone']],
-      raw: true
-    });
-
-    return res.status(200).json({
-      generos: generos.map(g => g.genero).filter(Boolean),
-      profissoes: profissoes.map(p => p.profissao).filter(Boolean),
-      telefones: telefones.map(t => t.telefone).filter(Boolean)
-    });
-  } catch (error) {
-    console.error('Erro ao buscar filtros:', error);
-    return res.status(500).json({ message: 'Erro interno do servidor.' });
-  }
-});
-
 
 
 
@@ -3004,6 +3256,21 @@ router.delete('/membros/:id', auth, async (req, res) => {
     return res.status(500).json({ message: 'Erro interno no servidor.' });
   }
 });
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

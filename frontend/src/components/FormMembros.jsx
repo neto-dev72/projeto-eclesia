@@ -9,7 +9,8 @@ import {
   Alert,
   CircularProgress,
   Typography,
-  Divider
+  Divider,
+  ListItemText
 } from '@mui/material';
 import api from '../api/axiosConfig';
 
@@ -50,20 +51,62 @@ export default function FormMembros({ onSuccess, membroData }) {
   const [departamentos, setDepartamentos] = useState([]);
   const [mensagem, setMensagem] = useState({ tipo: '', texto: '' });
   const [loading, setLoading] = useState(false);
+ 
+const [cargosOpen, setCargosOpen] = useState(false);
 
-  useEffect(() => {
-    if (membroData) {
-      setFormData({
-        ...formData,
-        ...membroData,
-        CargosIds: membroData.CargosIds || [],
-        DepartamentosIds: membroData.DepartamentosIds || [],
-        foto: null
-      });
-      if (membroData.foto) setPreviewFoto(membroData.foto);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [membroData]);
+const [departamentosOpen, setDepartamentosOpen] = useState(false);
+
+
+useEffect(() => {
+  if (membroData) {
+    // 👉 Extraia os dados relacionados do membroData
+    const { dadosAcademicos, dadosCristaos, diversos, cargos, departamentos } = membroData;
+
+    setFormData((prev) => ({
+      ...prev,
+      nome: membroData.nome || '',
+      genero: membroData.genero || '',
+      data_nascimento: membroData.data_nascimento || '',
+      estado_civil: membroData.estado_civil || '',
+      bi: membroData.bi || '',
+      telefone: membroData.telefone || '',
+      email: membroData.email || '',
+      endereco_rua: membroData.endereco_rua || '',
+      endereco_bairro: membroData.endereco_bairro || '',
+      endereco_cidade: membroData.endereco_cidade || '',
+      endereco_provincia: membroData.endereco_provincia || '',
+      ativo: membroData.ativo ?? true,
+
+      // 👉 Dados acadêmicos
+      habilitacoes: dadosAcademicos?.habilitacoes || '',
+      especialidades: dadosAcademicos?.especialidades || '',
+      estudo_teologico: dadosAcademicos?.estudo_teologico || '',
+      local_formacao: dadosAcademicos?.local_formacao || '',
+      profissao: membroData?.profissao || '',
+
+      // 👉 Dados cristãos
+      batizado: membroData?.batizado || false,
+      data_batismo: membroData?.data_batismo || '',
+      consagrado: dadosCristaos?.consagrado || false,
+      data_consagracao: dadosCristaos?.data_consagracao || '',
+      categoria_ministerial: dadosCristaos?.categoria_ministerial || '',
+
+      // 👉 Diversos
+      trabalha: diversos?.trabalha || false,
+      conta_outrem: diversos?.conta_outrem || false,
+      conta_propria: diversos?.conta_propria || false,
+
+      // 👉 Relações N:N
+      CargosIds: cargos?.map((c) => c.id) || [],
+      DepartamentosIds: departamentos?.map((d) => d.id) || [],
+    }));
+
+    if (membroData.foto) setPreviewFoto(membroData.foto);
+  }
+}, [membroData]);
+
+
+
 
   useEffect(() => {
     const fetchCargos = async () => {
@@ -215,18 +258,18 @@ export default function FormMembros({ onSuccess, membroData }) {
     'Não sabe',
   ];
 
-  const categoriaMinisterialOptions = [
-    'Pastor',
-    'Evangelista',
-    'Diácono',
-    'Presbítero',
-    'Missionário',
-    'Ancião',
-    'Líder de Jovens',
-    'Líder de Crianças',
-    'Ministro de Louvor',
-    'Outro',
-  ];
+ const categoriaMinisterialOptions = [
+  'Pastor',
+  'Pastor Presidente',
+  'Evangelista',
+  'Diácono',
+  'Diaconiza',
+  'Presbítero',
+  'Missionário',
+  'Ancião',
+  'Outro',
+];
+
 
   return (
     <Box
@@ -319,6 +362,9 @@ export default function FormMembros({ onSuccess, membroData }) {
         <MenuItem value="Casado">Casado</MenuItem>
         <MenuItem value="Divorciado">Divorciado</MenuItem>
         <MenuItem value="Viúvo">Viúvo</MenuItem>
+         <MenuItem onClick={(e) => e.target.blur()} sx={{ color: '#ffcc80', textAlign: 'center' }}>
+    FECHAR
+  </MenuItem>
       </TextField>
 
       {['bi', 'telefone', 'email', 'endereco_rua', 'endereco_bairro', 'endereco_cidade', 'endereco_provincia'].map((campo) => (
@@ -340,37 +386,100 @@ export default function FormMembros({ onSuccess, membroData }) {
         label={<Typography sx={{ color: '#b3e5fc' }}>Ativo</Typography>}
       />
 
-      <TextField
-        select
-        fullWidth
-        label="Cargos"
-        name="CargosIds"
-        value={formData.CargosIds}
-        onChange={handleChange}
-        margin="normal"
-        SelectProps={{ multiple: true, ...selectStyles }}
-        InputLabelProps={{ style: { color: '#b3e5fc' } }}
-        inputProps={{ style: { color: 'white' } }}
-      >
-        {cargos.map((cargo) => (
-          <MenuItem key={cargo.id} value={cargo.id}>{cargo.nome}</MenuItem>
-        ))}
-      </TextField>
+<TextField
+  select
+  fullWidth
+  label="Cargos"
+  name="CargosIds"
+  value={formData.CargosIds}
+  onChange={handleChange}
+  margin="normal"
+  SelectProps={{
+    multiple: true,
+    ...selectStyles,
+    open: cargosOpen,
+    onOpen: () => setCargosOpen(true),
+    onClose: () => setCargosOpen(false),
+    renderValue: (selected) => {
+      const selecionados = cargos
+        .filter((cargo) => selected.includes(cargo.id))
+        .map((cargo) => cargo.nome)
+        .join(', ');
+      return selecionados || 'Selecione cargos';
+    },
+  }}
+  InputLabelProps={{ style: { color: '#b3e5fc' } }}
+  inputProps={{ style: { color: 'white' } }}
+>
+  {cargos.map((cargo) => (
+    <MenuItem key={cargo.id} value={cargo.id}>
+      <Checkbox checked={formData.CargosIds.includes(cargo.id)} />
+      <ListItemText primary={cargo.nome} />
+    </MenuItem>
+  ))}
 
-      <TextField
-        select
-        fullWidth
-        label="Departamentos"
-        name="DepartamentosIds"
-        value={formData.DepartamentosIds}
-        onChange={handleChange}
-        margin="normal"
-        SelectProps={{ multiple: true, ...selectStyles }}
-        InputLabelProps={{ style: { color: '#b3e5fc' } }}
-        inputProps={{ style: { color: 'white' } }}
-      >
-        {departamentos.map((dep) => <MenuItem key={dep.id} value={dep.id}>{dep.nome}</MenuItem>)}
-      </TextField>
+  {/* Botão FECHAR */}
+  <MenuItem
+    onClick={() => setCargosOpen(false)}
+    sx={{
+      justifyContent: 'center',
+      color: '#2196f3',
+      fontWeight: 'bold',
+      borderTop: '1px solid rgba(255,255,255,0.2)',
+    }}
+  >
+    FECHAR
+  </MenuItem>
+</TextField>
+
+
+
+<TextField
+  select
+  fullWidth
+  label="Departamentos"
+  name="DepartamentosIds"
+  value={formData.DepartamentosIds}
+  onChange={handleChange}
+  margin="normal"
+  SelectProps={{
+    multiple: true,
+    ...selectStyles,
+    open: departamentosOpen,
+    onOpen: () => setDepartamentosOpen(true),
+    onClose: () => setDepartamentosOpen(false),
+    renderValue: (selected) => {
+      const selecionados = departamentos
+        .filter((dep) => selected.includes(dep.id))
+        .map((dep) => dep.nome)
+        .join(', ');
+      return selecionados || 'Selecione departamentos';
+    },
+  }}
+  InputLabelProps={{ style: { color: '#b3e5fc' } }}
+  inputProps={{ style: { color: 'white' } }}
+>
+  {departamentos.map((dep) => (
+    <MenuItem key={dep.id} value={dep.id}>
+      <Checkbox checked={formData.DepartamentosIds.includes(dep.id)} />
+      <ListItemText primary={dep.nome} />
+    </MenuItem>
+  ))}
+
+  {/* Botão FECHAR */}
+  <MenuItem
+    onClick={() => setDepartamentosOpen(false)}
+    sx={{
+      justifyContent: 'center',
+      color: '#2196f3',
+      fontWeight: 'bold',
+      borderTop: '1px solid rgba(255,255,255,0.2)',
+    }}
+  >
+    FECHAR
+  </MenuItem>
+</TextField>
+
 
       {/* DADOS CRISTÃOS */}
       <Typography variant="h6" sx={{ mt: 4, mb: 1, color: '#b3e5fc' }}>Dados Cristãos</Typography>
@@ -412,22 +521,27 @@ export default function FormMembros({ onSuccess, membroData }) {
         sx={{ '& .MuiSvgIcon-root': { color: 'white' } }}
       />
 
-      <TextField
-        select
-        fullWidth
-        label="Categoria Ministerial"
-        name="categoria_ministerial"
-        value={formData.categoria_ministerial}
-        onChange={handleChange}
-        margin="normal"
-        InputLabelProps={{ style: { color: '#b3e5fc' } }}
-        inputProps={{ style: { color: 'white' } }}
-        SelectProps={selectStyles}
-      >
-        {categoriaMinisterialOptions.map((opt, idx) => (
-          <MenuItem key={idx} value={opt}>{opt}</MenuItem>
-        ))}
-      </TextField>
+     <TextField
+  select
+  fullWidth
+  label="Categoria Ministerial"
+  name="categoria_ministerial"
+  value={formData.categoria_ministerial}
+  onChange={handleChange}
+  margin="normal"
+  InputLabelProps={{ style: { color: '#b3e5fc' } }}
+  inputProps={{ style: { color: 'white' } }}
+  SelectProps={selectStyles}
+>
+  {categoriaMinisterialOptions.map((opt, idx) => (
+    <MenuItem key={idx} value={opt}>{opt}</MenuItem>
+  ))}
+  <Divider sx={{ my: 1 }} />
+  <MenuItem onClick={(e) => e.target.blur()} sx={{ color: '#ffcc80', textAlign: 'center' }}>
+    FECHAR
+  </MenuItem>
+</TextField>
+
 
       {/* DADOS ACADÊMICOS */}
       <Typography variant="h6" sx={{ mt: 4, mb: 1, color: '#b3e5fc' }}>Dados Acadêmicos</Typography>

@@ -32,7 +32,7 @@ import {
 } from "@mui/icons-material";
 import api from "../api/axiosConfig";
 
-export default function FormCultos({ onSuccess, onCancel }) {
+export default function FormCultos({ culto, onSuccess, onCancel }) {
   const [tiposCulto, setTiposCulto] = useState([]);
   const [tiposContribuicao, setTiposContribuicao] = useState([]);
   const [membros, setMembros] = useState([]);
@@ -53,6 +53,8 @@ export default function FormCultos({ onSuccess, onCancel }) {
   const [selectedMembro, setSelectedMembro] = useState(null);
   const [valorMembro, setValorMembro] = useState("");
 
+  const isEdit = Boolean(culto?.id);
+
   // Buscar dados iniciais
   useEffect(() => {
     (async () => {
@@ -70,6 +72,30 @@ export default function FormCultos({ onSuccess, onCancel }) {
       }
     })();
   }, []);
+
+  // Preencher formulário ao editar
+  useEffect(() => {
+    if (culto) {
+      setFormData({
+        dataHora: culto.dataHora ? culto.dataHora.slice(0, 16) : "",
+        tipoCultoId: culto.tipoCultoId || "",
+        homens: culto.homens || "",
+        mulheres: culto.mulheres || "",
+        criancas: culto.criancas || "",
+        contribuicoes: (culto.contribuicoes || []).reduce((acc, c) => {
+          acc[c.tipoId] = c.valor;
+          return acc;
+        }, {}),
+        membrosContribuicoes: (culto.contribuicoes || [])
+          .filter((c) => c.membroId)
+          .reduce((acc, c) => {
+            if (!acc[c.tipoId]) acc[c.tipoId] = {};
+            acc[c.tipoId][c.membroId] = c.valor;
+            return acc;
+          }, {}),
+      });
+    }
+  }, [culto]);
 
   const handleChange = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -118,26 +144,39 @@ export default function FormCultos({ onSuccess, onCancel }) {
         }
       });
 
-      Object.entries(formData.membrosContribuicoes).forEach(([tipoId, membrosObj]) => {
-        Object.entries(membrosObj).forEach(([membroId, valor]) => {
-          if (valor) {
-            contribArray.push({
-              tipoId: parseInt(tipoId),
-              membroId: parseInt(membroId),
-              valor: parseFloat(valor),
-            });
-          }
-        });
-      });
+      Object.entries(formData.membrosContribuicoes).forEach(
+        ([tipoId, membrosObj]) => {
+          Object.entries(membrosObj).forEach(([membroId, valor]) => {
+            if (valor) {
+              contribArray.push({
+                tipoId: parseInt(tipoId),
+                membroId: parseInt(membroId),
+                valor: parseFloat(valor),
+              });
+            }
+          });
+        }
+      );
 
-      await api.post("/detalhes-cultos", {
-        dataHora: formData.dataHora,
-        tipoCultoId: formData.tipoCultoId,
-        homens: formData.homens,
-        mulheres: formData.mulheres,
-        criancas: formData.criancas,
-        contribuicoes: contribArray,
-      });
+      if (isEdit) {
+        await api.put(`/detalhes-cultos/${culto.id}`, {
+          dataHora: formData.dataHora,
+          tipoCultoId: formData.tipoCultoId,
+          homens: formData.homens,
+          mulheres: formData.mulheres,
+          criancas: formData.criancas,
+          contribuicoes: contribArray,
+        });
+      } else {
+        await api.post("/detalhes-cultos", {
+          dataHora: formData.dataHora,
+          tipoCultoId: formData.tipoCultoId,
+          homens: formData.homens,
+          mulheres: formData.mulheres,
+          criancas: formData.criancas,
+          contribuicoes: contribArray,
+        });
+      }
 
       onSuccess?.();
     } catch (error) {
@@ -170,7 +209,7 @@ export default function FormCultos({ onSuccess, onCancel }) {
           textShadow: "2px 2px 8px rgba(0,0,0,0.1)",
         }}
       >
-        Registrar Culto
+        {isEdit ? "Editar Culto" : "Registrar Culto"}
       </Typography>
       <Divider sx={{ mb: 4 }} />
 
@@ -282,30 +321,34 @@ export default function FormCultos({ onSuccess, onCancel }) {
                       <Table size="small" sx={{ mt: 2 }}>
                         <TableHead>
                           <TableRow sx={{ backgroundColor: "#f0f0f0" }}>
-                            <TableCell><b>Membro</b></TableCell>
-                            <TableCell><b>Valor (Kz)</b></TableCell>
+                            <TableCell>
+                              <b>Membro</b>
+                            </TableCell>
+                            <TableCell>
+                              <b>Valor (Kz)</b>
+                            </TableCell>
                           </TableRow>
                         </TableHead>
                         <TableBody>
-                          {Object.entries(formData.membrosContribuicoes[tipo.id]).map(
-                            ([membroId, valor]) => {
-                              const membro = membros.find(
-                                (m) => m.id === parseInt(membroId)
-                              );
-                              return (
-                                <TableRow key={membroId} hover>
-                                  <TableCell>{membro?.nome}</TableCell>
-                                  <TableCell>
-                                    <Chip
-                                      label={`${valor} Kz`}
-                                      color="success"
-                                      variant="outlined"
-                                    />
-                                  </TableCell>
-                                </TableRow>
-                              );
-                            }
-                          )}
+                          {Object.entries(
+                            formData.membrosContribuicoes[tipo.id]
+                          ).map(([membroId, valor]) => {
+                            const membro = membros.find(
+                              (m) => m.id === parseInt(membroId)
+                            );
+                            return (
+                              <TableRow key={membroId} hover>
+                                <TableCell>{membro?.nome}</TableCell>
+                                <TableCell>
+                                  <Chip
+                                    label={`${valor} Kz`}
+                                    color="success"
+                                    variant="outlined"
+                                  />
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
                         </TableBody>
                       </Table>
                     )}
@@ -352,7 +395,9 @@ export default function FormCultos({ onSuccess, onCancel }) {
                       label="Mulheres"
                       fullWidth
                       value={formData.mulheres}
-                      onChange={(e) => handleChange("mulheres", e.target.value)}
+                      onChange={(e) =>
+                        handleChange("mulheres", e.target.value)
+                      }
                     />
                   </Grid>
                   <Grid item xs={12} md={4}>
@@ -407,7 +452,13 @@ export default function FormCultos({ onSuccess, onCancel }) {
               }}
               disabled={loading}
             >
-              {loading ? <CircularProgress size={24} /> : "Salvar Culto"}
+              {loading ? (
+                <CircularProgress size={24} />
+              ) : isEdit ? (
+                "Atualizar Culto"
+              ) : (
+                "Salvar Culto"
+              )}
             </Button>
           </Grid>
         </Grid>

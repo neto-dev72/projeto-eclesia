@@ -200,16 +200,23 @@ export default function GestaoCultos() {
     setCultoEditando(null);
     setOpenFormModal(true);
   };
-  const abrirModalEditarCulto = (culto) => {
-    setCultoEditando(culto);
+  const abrirModalEditarCulto = async (culto) => {
+  try {
+    const res = await api.get(`/detalhes-cultos/${culto.id}`);
+    setCultoEditando(res.data);
     setOpenFormModal(true);
-  };
+  } catch (err) {
+    console.error("Erro ao buscar detalhes do culto:", err);
+    setSnackbar({ open: true, message: "Erro ao carregar detalhes do culto.", severity: "error" });
+  }
+};
+;
   const abrirModalNovoTipoCulto = () => setOpenFormTipoModal(true);
 
   // delete
   const deletarCulto = async (id) => {
     try {
-      await api.delete(`/cultos/${id}`);
+      await api.delete(`/detalhes-cultos/${id}`);
       await fetchCultos();
       setSnackbar({ open: true, message: "Culto excluído com sucesso.", severity: "success" });
     } catch (err) {

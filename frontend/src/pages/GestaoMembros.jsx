@@ -106,11 +106,28 @@ export default function GestaoMembros() {
       setSnackbar({ open: true, message: "Erro ao excluir membro.", severity: "error" });
     }
   };
+const handleEditarMembro = async (membro) => {
+  try {
+    setLoading(true);
+    // Busca os dados completos do membro
+    const res = await api.get(`/completos-membros/${membro.id}`);
+    const membroCompleto = res.data;
 
-  const handleEditarMembro = (membro) => {
-    setMembroEditar(membro);
+    // Atualiza o estado e abre o modal
+    setMembroEditar(membroCompleto);
     setOpenMembroModal(true);
-  };
+  } catch (err) {
+    console.error(err);
+    setSnackbar({
+      open: true,
+      message: "Erro ao carregar dados completos do membro.",
+      severity: "error",
+    });
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   const handleVerHistorico = async (membro) => {
     try {
