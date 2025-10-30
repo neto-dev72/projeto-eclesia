@@ -1,362 +1,267 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   Box,
-  Button,
-  Container,
-  Grid,
   Typography,
-  Card,
-  CardContent,
-  Divider,
-  Link,
-  IconButton,
+  Button,
+  useTheme,
+  useMediaQuery,
+  Zoom,
 } from "@mui/material";
-import {
-  People,
-  Event,
-  BarChart,
-  AccountBalance,
-  Phone,
-  Email,
-  LocationOn,
-  Facebook,
-  Instagram,
-  LinkedIn,
-  Twitter,
-} from "@mui/icons-material";
-import { motion } from "framer-motion";
-import heroImage from "../assets/home1.png"; // imagem estática
+import { PlayCircle } from "@mui/icons-material";
+import { useLocation, useNavigate } from "react-router-dom";
+import heroImage from "../assets/homeimg.jpg";
+import videoFile from "../assets/demo.mp4";
+import VideoModal from "../components/VideoModal";
+import Servicos from "../components/servicos";
+import Footer from "../components/footer";
+import SobreEquipa from "../components/SobreEquipe";
+import Planos from "../components/Planos";
+import Contato from "../components/Contato";
+import Testemunhos from "../components/Testemunhos";
+import WhatsAppIcon from "@mui/icons-material/WhatsApp";
 
 export default function Home() {
+  const theme = useTheme();
+  const isDesktop = useMediaQuery(theme.breakpoints.up("md"));
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+  const [openVideo, setOpenVideo] = useState(false);
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (location.state?.scrollTo === "servicos") {
+      const el = document.getElementById("servicos");
+      if (el) {
+        setTimeout(() => {
+          window.scrollTo({
+            top: el.getBoundingClientRect().top + window.scrollY - 120,
+            behavior: "smooth",
+          });
+        }, 300);
+      }
+    }
+  }, [location]);
+
   return (
-    <Box
-      sx={{
-        background: "linear-gradient(135deg, #0d0d2b, #1a1a40, #0f0c29)",
-        color: "white",
-        minHeight: "100vh",
-        overflow: "hidden",
-      }}
-    >
-      {/* Hero Section */}
-      <Container maxWidth="lg" sx={{ py: 14 }}>
-        <Grid container spacing={8} alignItems="center">
-          <Grid item xs={12} md={6}>
-            <motion.div
-              initial={{ opacity: 0, x: -40 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 1 }}
-            >
-              <Typography
-                variant="h2"
-                fontWeight="bold"
-                gutterBottom
-                sx={{
-                  background: "linear-gradient(90deg, #00c6ff, #0072ff)",
-                  WebkitBackgroundClip: "text",
-                  WebkitTextFillColor: "transparent",
-                  textShadow: "0px 0px 25px rgba(0, 114, 255, 0.5)",
-                }}
-              >
-                Tecnologia inteligente de gestão de igrejas
-              </Typography>
-              <Typography
-                variant="h6"
-                sx={{ mb: 4, opacity: 0.85, maxWidth: 500 }}
-              >
-                A Bernet cria plataformas modernas para igrejas, empresas e
-                organizações, conectando tecnologia e inovação para transformar
-                sua gestão.
-              </Typography>
-              <Button
-                variant="contained"
-                size="large"
-                sx={{
-                  px: 4,
-                  py: 1.5,
-                  borderRadius: "30px",
-                  fontWeight: "bold",
-                  background:
-                    "linear-gradient(135deg, #6a11cb, #2575fc, #00c6ff)",
-                  boxShadow: "0px 8px 25px rgba(0,0,0,0.5)",
-                  "&:hover": {
-                    transform: "scale(1.05)",
-                    boxShadow: "0px 12px 30px rgba(0,0,0,0.7)",
-                  },
-                }}
-              >
-                ENTRA / Login
-              </Button>
-            </motion.div>
-          </Grid>
-
-          <Grid item xs={12} md={6}>
-            <motion.div
-              initial={{ opacity: 0, scale: 0.85 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 1.2 }}
-            >
-              <Box
-                component="img"
-                src={heroImage}
-                alt="Ilustração Bernet"
-                sx={{
-                  width: "100%",
-                  maxWidth: 520,
-                  margin: "0 auto",
-                  borderRadius: "25px",
-                  boxShadow: "0px 15px 40px rgba(0,0,0,0.6)",
-                  border: "2px solid rgba(255,255,255,0.2)",
-                }}
-              />
-            </motion.div>
-          </Grid>
-        </Grid>
-      </Container>
-
-      {/* Recursos */}
-      <Container maxWidth="lg" sx={{ py: 14 }}>
-        <motion.div
-          initial={{ opacity: 0, y: 40 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          transition={{ duration: 1 }}
-        >
-          <Typography
-            variant="h4"
-            textAlign="center"
-            fontWeight="bold"
-            gutterBottom
-            sx={{
-              textTransform: "uppercase",
-              letterSpacing: 2,
-              mb: 2,
-              textShadow: "0px 0px 15px rgba(0,200,255,0.5)",
-            }}
-          >
-            O que oferecemos
-          </Typography>
-          <Typography
-            variant="subtitle1"
-            textAlign="center"
-            sx={{ mb: 8, opacity: 0.7 }}
-          >
-            Tecnologia de ponta para transformar sua organização.
-          </Typography>
-        </motion.div>
-
-        <Grid container spacing={4}>
-          {[
-            {
-              icon: <AccountBalance sx={{ fontSize: 60, color: "#FFD700" }} />,
-              title: "Gestão Financeira",
-              desc: "Controle completo de finanças, relatórios e segurança.",
-            },
-            {
-              icon: <People sx={{ fontSize: 60, color: "#4CAF50" }} />,
-              title: "Gestão de Pessoas",
-              desc: "Gerencie membros, clientes e equipes de forma eficiente.",
-            },
-            {
-              icon: <Event sx={{ fontSize: 60, color: "#FF5722" }} />,
-              title: "Eventos & Agendas",
-              desc: "Organize e acompanhe atividades com calendários inteligentes.",
-            },
-            {
-              icon: <BarChart sx={{ fontSize: 60, color: "#03A9F4" }} />,
-              title: "Relatórios Avançados",
-              desc: "Visualize dados estratégicos com gráficos e estatísticas.",
-            },
-          ].map((item, i) => (
-            <Grid item xs={12} md={3} key={i}>
-              <motion.div whileHover={{ scale: 1.08 }}>
-                <Card
-                  sx={{
-                    background:
-                      "linear-gradient(145deg, rgba(255,255,255,0.1), rgba(0,0,0,0.4))",
-                    color: "white",
-                    height: "100%",
-                    borderRadius: "22px",
-                    boxShadow: "0px 12px 35px rgba(0,0,0,0.6)",
-                    backdropFilter: "blur(14px)",
-                    border: "1px solid rgba(255,255,255,0.1)",
-                    transition: "all 0.4s ease",
-                  }}
-                >
-                  <CardContent sx={{ textAlign: "center", p: 5 }}>
-                    <Box
-                      sx={{
-                        mb: 2,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        width: 90,
-                        height: 90,
-                        borderRadius: "50%",
-                        background:
-                          "linear-gradient(135deg, rgba(255,255,255,0.2), rgba(0,0,0,0.3))",
-                        backdropFilter: "blur(6px)",
-                        boxShadow: "0 0 25px rgba(255,255,255,0.2)",
-                        margin: "0 auto",
-                      }}
-                    >
-                      {item.icon}
-                    </Box>
-                    <Typography
-                      variant="h6"
-                      fontWeight="bold"
-                      sx={{ mt: 2, mb: 1 }}
-                    >
-                      {item.title}
-                    </Typography>
-                    <Typography variant="body2" sx={{ opacity: 0.8 }}>
-                      {item.desc}
-                    </Typography>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            </Grid>
-          ))}
-        </Grid>
-      </Container>
-
-      {/* CTA */}
+    <Box>
+      {/* 🔹 HERO SECTION */}
       <Box
         sx={{
-          py: 14,
-          textAlign: "center",
-          background: "linear-gradient(135deg,#6a11cb,#2575fc,#00c6ff)",
-          boxShadow: "inset 0 0 80px rgba(0,0,0,0.5)",
+          width: "100%",
+          height: isDesktop ? "90vh" : "75vh",
+          position: "relative",
+          backgroundImage: `url(${heroImage})`,
+          backgroundSize: "cover",
+          backgroundPosition: isDesktop ? "center top 60px" : "center center",
+          "&::after": {
+            content: '""',
+            position: "absolute",
+            top: 0,
+            left: 0,
+            width: "100%",
+            height: "100%",
+            background: "rgba(0, 0, 70, 0.6)",
+          },
         }}
       >
-        <motion.div
-          initial={{ opacity: 0, y: 40 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          transition={{ duration: 1 }}
+        <Box
+          sx={{
+            position: "absolute",
+            top: "50%",
+            left: "10%",
+            transform: "translateY(-50%)",
+            maxWidth: isDesktop ? "50%" : "90%",
+            textAlign: "left",
+            zIndex: 1,
+          }}
         >
           <Typography
-            variant="h4"
-            fontWeight="bold"
-            gutterBottom
+            variant={isDesktop ? "h2" : "h4"}
             sx={{
-              textTransform: "uppercase",
-              letterSpacing: 3,
-              textShadow: "0px 0px 25px rgba(255,255,255,0.6)",
+              fontWeight: 900,
+              color: "#ffffff",
+              mb: 2,
+              lineHeight: 1.1,
+              fontFamily: "'Poppins', sans-serif",
+              "& span": { color: "#66b2ff", fontWeight: 900 },
             }}
           >
-            Bernet - Inovação que conecta
+            Transforme a gestão da sua igreja com a <span>Bernet@-eclesia</span>
           </Typography>
-          <Typography variant="subtitle1" sx={{ mb: 5, opacity: 0.85 }}>
-            Soluções digitais para igrejas, empresas e muito mais.
-          </Typography>
-          <Button
-            variant="contained"
-            size="large"
+
+          <Typography
+            variant={isDesktop ? "h5" : "body1"}
             sx={{
-              px: 5,
-              py: 1.8,
-              borderRadius: "35px",
-              fontWeight: "bold",
-              background: "linear-gradient(90deg,#00c6ff,#0072ff,#6a11cb)",
-              boxShadow: "0px 10px 30px rgba(0,0,0,0.6)",
-              "&:hover": {
-                transform: "scale(1.08)",
-                boxShadow: "0px 12px 35px rgba(0,0,0,0.8)",
-              },
+              color: "rgba(255,255,255,0.9)",
+              fontWeight: 400,
+              lineHeight: 1.6,
+              mb: 3,
+              maxWidth: "90%",
             }}
           >
-            ENTRA / Login
-          </Button>
-        </motion.div>
-      </Box>
-
-      {/* Footer */}
-      <Box sx={{ py: 10, px: 4, background: "#0a0a1a" }}>
-        <Container maxWidth="lg">
-          <Grid container spacing={8}>
-            {/* Sobre */}
-            <Grid item xs={12} md={4}>
-              <Typography
-                variant="h5"
-                fontWeight="bold"
-                gutterBottom
-                sx={{
-                  background: "linear-gradient(90deg,#00c6ff,#6a11cb)",
-                  WebkitBackgroundClip: "text",
-                  WebkitTextFillColor: "transparent",
-                }}
-              >
-                Bernet
-              </Typography>
-              <Typography variant="body2" sx={{ opacity: 0.75 }}>
-                Desenvolvemos soluções digitais inteligentes para diferentes
-                setores: igrejas, beleza, educação e empresas. A tecnologia é a
-                nossa missão.
-              </Typography>
-              <Box sx={{ mt: 3, display: "flex", gap: 2 }}>
-                {[Facebook, Instagram, LinkedIn, Twitter].map((Icon, i) => (
-                  <IconButton
-                    key={i}
-                    sx={{
-                      color: "white",
-                      border: "1px solid rgba(255,255,255,0.2)",
-                      "&:hover": {
-                        background: "linear-gradient(135deg,#6a11cb,#00c6ff)",
-                        transform: "scale(1.15)",
-                      },
-                    }}
-                  >
-                    <Icon />
-                  </IconButton>
-                ))}
-              </Box>
-            </Grid>
-
-            {/* Links */}
-            <Grid item xs={12} md={4}>
-              <Typography variant="h6" fontWeight="bold" gutterBottom>
-                Links Rápidos
-              </Typography>
-              <Box display="flex" flexDirection="column" gap={1.5}>
-                {["Início", "Recursos", "Planos", "Contato"].map((link) => (
-                  <Link
-                    key={link}
-                    href="#"
-                    underline="hover"
-                    color="inherit"
-                    sx={{ opacity: 0.8, "&:hover": { color: "#00c6ff" } }}
-                  >
-                    {link}
-                  </Link>
-                ))}
-              </Box>
-            </Grid>
-
-            {/* Contatos */}
-            <Grid item xs={12} md={4}>
-              <Typography variant="h6" fontWeight="bold" gutterBottom>
-                Contato
-              </Typography>
-              <Box display="flex" alignItems="center" gap={1.5} mb={1}>
-                <Phone fontSize="small" />{" "}
-                <Typography variant="body2">+244 900 000 000</Typography>
-              </Box>
-              <Box display="flex" alignItems="center" gap={1.5} mb={1}>
-                <Email fontSize="small" />{" "}
-                <Typography variant="body2">contato@bernet.com</Typography>
-              </Box>
-              <Box display="flex" alignItems="center" gap={1.5}>
-                <LocationOn fontSize="small" />{" "}
-                <Typography variant="body2">Luanda, Angola</Typography>
-              </Box>
-            </Grid>
-          </Grid>
-
-          <Divider sx={{ my: 5, background: "rgba(255,255,255,0.2)" }} />
-
-          <Typography variant="body2" textAlign="center" sx={{ opacity: 0.6 }}>
-            © 2025 Bernet - Todos os direitos reservados
+            Facilitamos a administração, o acompanhamento dos membros, finanças,
+            eventos e muito mais — tudo em um único sistema pensado para igrejas.
           </Typography>
-        </Container>
+
+          <Box
+            sx={{
+              display: "flex",
+              flexDirection: "row",
+              gap: 2,
+              flexWrap: "wrap",
+            }}
+          >
+            <Button
+              variant="contained"
+              onClick={() => navigate("/criar-usuarios")}
+              sx={{
+                backgroundColor: "#3399FF",
+                color: "#fff",
+                fontWeight: 700,
+                px: 5,
+                py: 2,
+                fontSize: isDesktop ? "1.1rem" : "1rem",
+                borderRadius: "14px",
+                textTransform: "none",
+                minWidth: 0,
+                "&:hover": { backgroundColor: "#2a80d6" },
+              }}
+            >
+              Experimente agora
+            </Button>
+
+            <Button
+              variant="text"
+              onClick={() => setOpenVideo(true)}
+              sx={{
+                color: "#fff",
+                fontWeight: 600,
+                px: 4,
+                py: 2,
+                fontSize: isDesktop ? "1.1rem" : "1rem",
+                display: "flex",
+                alignItems: "center",
+                gap: 1.5,
+                textTransform: "none",
+                "&:hover": { color: "#66b2ff" },
+              }}
+            >
+              <PlayCircle sx={{ color: "#3399FF", fontSize: 32 }} />
+              Ver apresentação
+            </Button>
+          </Box>
+        </Box>
+
+        <VideoModal
+          open={openVideo}
+          handleClose={() => setOpenVideo(false)}
+          videoSrc={videoFile}
+        />
       </Box>
+
+      <Box id="servicos">
+        <Servicos />
+      </Box>
+
+      <SobreEquipa />
+      <Testemunhos />
+      <Planos />
+      <Contato />
+      <Footer />
+
+      {/* 🔹 ÍCONE FIXO WHATSAPP PREMIUM COM ONDAS */}
+   
+  <Zoom in={true}>
+  <Box
+    component="a"
+    href={`https://wa.me/244923519571?text=${encodeURIComponent(
+      "Olá, caro(a) cliente, esperamos que tudo vá bem! Se clicou é porque está interessado! Expõe a tua questão, que estamos disponíveis em respondê-lo!"
+    )}`}
+    target="_blank"
+    sx={(theme) => ({
+      position: "fixed",
+      bottom: 32,
+      right: 32,
+      width: 70,
+      height: 70,
+      borderRadius: "50%",
+      background: "linear-gradient(135deg, #25D366, #128C7E)",
+      display: "flex",
+      justifyContent: "center",
+      alignItems: "center",
+      color: "#fff",
+      boxShadow: "0 12px 28px rgba(0,0,0,0.35), 0 0 15px rgba(37,211,102,0.6)",
+      zIndex: 9999,
+      cursor: "pointer",
+      animation: "premiumPulse 2.5s infinite",
+      "&:hover": {
+        transform: "scale(1.3) rotate(-5deg)",
+        transition: "all 0.4s ease-in-out",
+        boxShadow: "0 15px 35px rgba(0,0,0,0.45), 0 0 25px rgba(37,211,102,0.8), 0 0 40px rgba(37,211,102,0.5)",
+      },
+      "&::before, &::after": {
+        content: '""',
+        position: "absolute",
+        width: "120%",
+        height: "120%",
+        borderRadius: "50%",
+        background: "rgba(37, 211, 102, 0.3)",
+        animation: "wavePremium 2.8s infinite",
+      },
+      "&::after": {
+        animationDelay: "1.4s",
+        background: "rgba(37, 211, 102, 0.2)",
+      },
+
+      // Tablets
+      [theme.breakpoints.down("md")]: {
+        bottom: 140,
+        width: 65,
+        height: 65,
+      },
+
+      // Celulares
+      [theme.breakpoints.down("sm")]: {
+        bottom: 180,
+        right: 16,
+        width: 60,
+        height: 60,
+      },
+    })}
+  >
+    <WhatsAppIcon
+      sx={(theme) => ({
+        fontSize: 36,
+        zIndex: 2,
+        filter: "drop-shadow(0 0 4px #fff) drop-shadow(0 0 6px #25D366)",
+        [theme.breakpoints.down("md")]: {
+          fontSize: 34,
+        },
+        [theme.breakpoints.down("sm")]: {
+          fontSize: 32,
+        },
+      })}
+    />
+  </Box>
+</Zoom>
+
+
+<style>
+{`
+  @keyframes premiumPulse {
+    0% { transform: scale(1); box-shadow: 0 12px 28px rgba(0,0,0,0.35), 0 0 15px rgba(37,211,102,0.6); }
+    50% { transform: scale(1.1); box-shadow: 0 15px 35px rgba(0,0,0,0.45), 0 0 25px rgba(37,211,102,0.8); }
+    100% { transform: scale(1); box-shadow: 0 12px 28px rgba(0,0,0,0.35), 0 0 15px rgba(37,211,102,0.6); }
+  }
+
+  @keyframes wavePremium {
+    0% { transform: scale(0.8); opacity: 0.6; }
+    50% { transform: scale(1.6); opacity: 0; }
+    100% { transform: scale(0.8); opacity: 0.6; }
+  }
+`}
+</style>
+
     </Box>
   );
 }

@@ -117,38 +117,105 @@ router.get('/departamentos', auth, async (req, res) => {
 // ====================
 // Rota para criar usuário
 // ====================
+// ====================
+// Rota para criar usuário
+// ====================
 router.post("/usuarios", async (req, res) => {
-  const { nome, senha, SedeId, FilhalId } = req.body;
-
-  console.log("Body recebido:", req.body);
-
-  // Validação básica
-  if (!nome || !senha) {
-    return res.status(400).json({ message: "Nome e senha são obrigatórios." });
-  }
-
   try {
-    // Hash da senha
-    const hashSenha = await bcrypt.hash(senha, 10);
+    const {
+      nome,
+      senha,
+      funcao,
+      sedeNome,
+      sedeEndereco,
+      sedeTelefone,
+      sedeEmail,
+      filhalNome,
+      filhalEndereco,
+      filhalTelefone,
+      filhalEmail
+    } = req.body;
 
-    // Criação do usuário com função sempre como super_admin
+    // ✅ Verifica se a senha foi enviada e tem pelo menos 5 caracteres
+    if (!senha || senha.length < 5) {
+      return res.status(400).json({
+        message: "A senha deve ter pelo menos 5 caracteres."
+      });
+    }
+
+    // ✅ Verifica se já existe uma senha igual (comparando com todas)
+    const usuarios = await Usuarios.findAll({ attributes: ["senha"] });
+    for (const u of usuarios) {
+      const senhaRepetida = await bcrypt.compare(senha, u.senha);
+      if (senhaRepetida) {
+        return res.status(400).json({
+          message: "Essa senha já está sendo usada por outro usuário. Escolha uma diferente."
+        });
+      }
+    }
+
+    // 🔹 Inicializa IDs como null
+    let sedeId = null;
+    let filhalId = null;
+
+    // 🔹 Cria a sede (caso tenha sido enviada)
+    if (sedeNome) {
+      const novaSede = await Sede.create({
+        nome: sedeNome,
+        endereco: sedeEndereco || null,
+        telefone: sedeTelefone || null,
+        email: sedeEmail || null,
+        status: "pendente", // ✅ Status padrão alterado para 'pendente'
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      sedeId = novaSede.id;
+    }
+
+    // 🔹 Cria a filhal (caso tenha sido enviada)
+    if (filhalNome) {
+      const novaFilhal = await Filhal.create({
+        nome: filhalNome,
+        endereco: filhalEndereco || null,
+        telefone: filhalTelefone || null,
+        email: filhalEmail || null,
+        status: "pendente", // ✅ Status padrão alterado para 'pendente'
+        SedeId: sedeId || null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      filhalId = novaFilhal.id;
+    }
+
+    // 🔹 Criptografa a senha antes de salvar
+    const hashedSenha = await bcrypt.hash(senha, 10);
+
+    // 🔹 Cria o usuário associado (sem obrigar sede/filhal)
     const novoUsuario = await Usuarios.create({
       nome,
-      senha: hashSenha,
-      SedeId: SedeId || null,
-      FilhalId: FilhalId || null,
-      funcao: "super_admin", // atribuindo função fixa
+      senha: hashedSenha,
+      funcao: funcao || "admin",
+      SedeId: sedeId,
+      FilhalId: filhalId,
+      createdAt: new Date(),
+      updatedAt: new Date(),
     });
 
-    return res
-      .status(201)
-      .json({ message: "Usuário criado com sucesso!", usuario: novoUsuario });
+    res.status(201).json({
+      message: "Usuário criado com sucesso!",
+      usuario: novoUsuario,
+      sede: sedeId ? { id: sedeId } : null,
+      filhal: filhalId ? { id: filhalId } : null
+    });
+
   } catch (error) {
     console.error("Erro ao criar usuário:", error);
-    return res.status(500).json({ message: "Erro interno do servidor." });
+    res.status(500).json({
+      message: "Erro ao criar usuário",
+      error: error.message
+    });
   }
 });
-
 
 
 
@@ -708,8 +775,6 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 
 
-
-
 // Rota para atualizar membro com foto, departamentos e tabelas relacionadas
 router.put('/membros/:id', auth, upload.single('foto'), async (req, res) => {
   try {
@@ -727,50 +792,46 @@ router.put('/membros/:id', auth, upload.single('foto'), async (req, res) => {
     const membro = await Membros.findByPk(membroId);
     if (!membro) return res.status(404).json({ message: 'Membro não encontrado.' });
 
-    // Função para converter datas inválidas em null
-    const parseDate = (dateStr) => {
-      if (!dateStr || dateStr === '' || dateStr === 'Invalid date') return null;
-      return dateStr;
-    };
-
-    // Função para converter arrays de IDs
+    const parseDate = (dateStr) => (!dateStr || dateStr === '' || dateStr === 'Invalid date') ? null : dateStr;
     const parseIds = (input) => {
       if (!input) return [];
-      if (Array.isArray(input)) return input.map(id => parseInt(id, 10));
-      return input.split(',').map(id => parseInt(id, 10));
+      if (Array.isArray(input)) return input.map(id => parseInt(id, 10)).filter(id => !isNaN(id));
+      return input.split(',').map(id => parseInt(id, 10)).filter(id => !isNaN(id));
     };
     const cargosArray = parseIds(CargosIds);
     const departamentosArray = parseIds(DepartamentosIds);
 
-    // Validação mínima: nome e gênero sempre
-    if (!nome || !genero) {
-      return res.status(400).json({ message: 'Nome e gênero são obrigatórios.' });
-    }
+    if (!nome || !genero) return res.status(400).json({ message: 'Nome e gênero são obrigatórios.' });
 
     const fotoCaminho = req.file ? `/uploads/fotos/${req.file.filename}` : membro.foto;
 
-    // Atualiza dados do membro
-    await membro.update({
+    // Monta objeto apenas com campos enviados e válidos
+    const dadosAtualizar = {
       nome,
       foto: fotoCaminho,
       genero,
       data_nascimento: parseDate(data_nascimento),
       estado_civil,
-      bi: bi && bi.trim() !== '' ? bi.trim() : null, // Evita conflito UNIQUE
+      bi: bi && bi.trim() !== '' ? bi.trim() : membro.bi,
       telefone,
-      email,
-      endereco_rua,
-      endereco_bairro,
-      endereco_cidade,
-      endereco_provincia,
-      grau_academico,
-      profissao,
-      batizado: batizado === true || batizado === 'true',
-      data_batismo: parseDate(data_batismo),
-      ativo: ativo === true || ativo === 'true',
-    });
+      ativo: ativo !== undefined ? (ativo === true || ativo === 'true') : membro.ativo,
+      batizado: batizado !== undefined ? (batizado === true || batizado === 'true') : membro.batizado,
+    };
 
-    // Atualiza cargos se vierem
+    // Atualiza email somente se for válido (não vazio)
+    if (email !== undefined && email.trim() !== '') dadosAtualizar.email = email;
+
+    if (endereco_rua !== undefined) dadosAtualizar.endereco_rua = endereco_rua;
+    if (endereco_bairro !== undefined) dadosAtualizar.endereco_bairro = endereco_bairro;
+    if (endereco_cidade !== undefined) dadosAtualizar.endereco_cidade = endereco_cidade;
+    if (endereco_provincia !== undefined) dadosAtualizar.endereco_provincia = endereco_provincia;
+    if (grau_academico !== undefined) dadosAtualizar.grau_academico = grau_academico;
+    if (profissao !== undefined) dadosAtualizar.profissao = profissao;
+    if (data_batismo !== undefined) dadosAtualizar.data_batismo = parseDate(data_batismo);
+
+    await membro.update(dadosAtualizar);
+
+    // Atualiza cargos
     if (CargosIds) {
       await CargoMembro.destroy({ where: { MembroId: membroId } });
       if (cargosArray.length > 0) {
@@ -779,7 +840,7 @@ router.put('/membros/:id', auth, upload.single('foto'), async (req, res) => {
       }
     }
 
-    // Atualiza departamentos se vierem
+    // Atualiza departamentos
     if (DepartamentosIds) {
       await DepartamentoMembros.destroy({ where: { MembroId: membroId } });
       if (departamentosArray.length > 0) {
@@ -797,10 +858,10 @@ router.put('/membros/:id', auth, upload.single('foto'), async (req, res) => {
     const dadosAcademicos = await DadosAcademicos.findOne({ where: { MembroId: membroId } });
     if (dadosAcademicos) {
       await dadosAcademicos.update({
-        habilitacoes: habilitacoes || null,
-        especialidades: especialidades || null,
-        estudo_teologico: estudo_teologico || null,
-        local_formacao: local_formacao || null,
+        habilitacoes: habilitacoes !== undefined ? habilitacoes : dadosAcademicos.habilitacoes,
+        especialidades: especialidades !== undefined ? especialidades : dadosAcademicos.especialidades,
+        estudo_teologico: estudo_teologico !== undefined ? estudo_teologico : dadosAcademicos.estudo_teologico,
+        local_formacao: local_formacao !== undefined ? local_formacao : dadosAcademicos.local_formacao,
       });
     }
 
@@ -808,9 +869,9 @@ router.put('/membros/:id', auth, upload.single('foto'), async (req, res) => {
     const dadosCristaos = await DadosCristaos.findOne({ where: { MembroId: membroId } });
     if (dadosCristaos) {
       await dadosCristaos.update({
-        consagrado: consagrado === true || consagrado === 'true',
-        data_consagracao: parseDate(data_consagracao),
-        categoria_ministerial: categoria_ministerial || null,
+        consagrado: consagrado !== undefined ? (consagrado === true || consagrado === 'true') : dadosCristaos.consagrado,
+        data_consagracao: data_consagracao !== undefined ? parseDate(data_consagracao) : dadosCristaos.data_consagracao,
+        categoria_ministerial: categoria_ministerial !== undefined ? categoria_ministerial : dadosCristaos.categoria_ministerial,
       });
     }
 
@@ -818,9 +879,9 @@ router.put('/membros/:id', auth, upload.single('foto'), async (req, res) => {
     const diversos = await Diversos.findOne({ where: { MembroId: membroId } });
     if (diversos) {
       await diversos.update({
-        trabalha: trabalha === true || trabalha === 'true',
-        conta_outrem: conta_outrem === true || conta_outrem === 'true',
-        conta_propria: conta_propria === true || conta_propria === 'true',
+        trabalha: trabalha !== undefined ? (trabalha === true || trabalha === 'true') : diversos.trabalha,
+        conta_outrem: conta_outrem !== undefined ? (conta_outrem === true || conta_outrem === 'true') : diversos.conta_outrem,
+        conta_propria: conta_propria !== undefined ? (conta_propria === true || conta_propria === 'true') : diversos.conta_propria,
       });
     }
 
@@ -831,9 +892,6 @@ router.put('/membros/:id', auth, upload.single('foto'), async (req, res) => {
     return res.status(500).json({ message: 'Erro interno no servidor.' });
   }
 });
-
-
-
 
 
 
@@ -944,7 +1002,6 @@ router.get('/completos-membros/:id', auth, async (req, res) => {
 
 
 
-
 // Rota para cadastrar membros com foto, departamentos e tabelas relacionadas
 router.post('/membros', auth, upload.single('foto'), async (req, res) => {
   try {
@@ -964,8 +1021,20 @@ router.post('/membros', auth, upload.single('foto'), async (req, res) => {
       trabalha, conta_outrem, conta_propria
     } = req.body;
 
+    // === Conversão segura de IDs para números e filtragem de NaN ===
+    const cargosArray = Array.isArray(CargosIds)
+      ? CargosIds.map((id) => parseInt(id, 10)).filter((id) => !isNaN(id))
+      : CargosIds
+      ? [parseInt(CargosIds, 10)].filter((id) => !isNaN(id))
+      : [];
+
+    const departamentosArray = Array.isArray(DepartamentosIds)
+      ? DepartamentosIds.map((id) => parseInt(id, 10)).filter((id) => !isNaN(id))
+      : DepartamentosIds
+      ? [parseInt(DepartamentosIds, 10)].filter((id) => !isNaN(id))
+      : [];
+
     // Validação obrigatória
-    const cargosArray = Array.isArray(CargosIds) ? CargosIds : CargosIds ? [CargosIds] : [];
     if (!nome || !genero || cargosArray.length === 0) {
       return res.status(400).json({
         message: 'Nome, gênero e pelo menos um cargo são obrigatórios.'
@@ -993,35 +1062,31 @@ router.post('/membros', auth, upload.single('foto'), async (req, res) => {
       batizado: batizado === true || batizado === 'true',
       data_batismo,
       ativo: ativo === false || ativo === 'false' ? false : true,
-      // Pega automaticamente da autenticação
       SedeId: req.usuario.SedeId || null,
       FilhalId: req.usuario.FilhalId || null
     });
 
     const novoMembro = await Membros.create(dados);
 
-    // Cadastro dos cargos (múltiplos)
+    // Cadastro dos cargos
     if (cargosArray.length > 0) {
-      const registrosCargo = cargosArray.map(cargoId => ({
+      const registrosCargo = cargosArray.map((cargoId) => ({
         MembroId: novoMembro.id,
-        CargoId: parseInt(cargoId, 10),
+        CargoId: cargoId,
       }));
       await CargoMembro.bulkCreate(registrosCargo);
     }
 
     // Cadastro dos departamentos
-    const departamentosArray = Array.isArray(DepartamentosIds) ? DepartamentosIds : DepartamentosIds ? [DepartamentosIds] : [];
-    if (departamentosArray.length > 0 && departamentosArray[0] !== '') {
-      const registrosDepartamentos = departamentosArray.map(depId => ({
+    if (departamentosArray.length > 0) {
+      const registrosDepartamentos = departamentosArray.map((depId) => ({
         MembroId: novoMembro.id,
-        DepartamentoId: parseInt(depId, 10),
+        DepartamentoId: depId,
         ativo: true,
         data_entrada: new Date(),
       }));
       await DepartamentoMembros.bulkCreate(registrosDepartamentos);
     }
-
-    // === Cadastro das tabelas novas ===
 
     // Dados Acadêmicos
     await DadosAcademicos.create({
@@ -1057,7 +1122,6 @@ router.post('/membros', auth, upload.single('foto'), async (req, res) => {
     return res.status(500).json({ message: 'Erro interno no servidor.' });
   }
 });
-
 
 
 
@@ -2124,14 +2188,368 @@ router.get('/lista/presencas', async (req, res) => {
 
 
 
-// Rota para buscar todas as sedes com suas filhais
+
+
+
+
+
+
+// 🔹 Rota que retorna estatísticas gerais do dashboard
+router.get('/dashboard', auth, async (req, res) => {
+  try {
+    const { SedeId, FilhalId } = req.usuario;
+
+    const inicioMes = dayjs().startOf('month').toDate();
+    const fimMes = dayjs().endOf('month').toDate();
+    const hoje = dayjs().startOf("day").toDate();
+
+    const filtroHierarquia = {};
+    if (FilhalId) filtroHierarquia.FilhalId = FilhalId;
+    else if (SedeId) filtroHierarquia.SedeId = SedeId;
+
+    // -----------------------------
+    // 1️⃣ TOTAL DE MEMBROS
+    // -----------------------------
+    const totalAtivos = await Membros.count({ where: { ...filtroHierarquia, ativo: 1 } });
+    const totalInativos = await Membros.count({ where: { ...filtroHierarquia, ativo: 0 } });
+    const totalMembros = totalAtivos + totalInativos;
+
+    // -----------------------------
+    // 2️⃣ NOVOS MEMBROS NO MÊS
+    // -----------------------------
+    const novosMembrosMes = await Membros.count({
+      where: { ...filtroHierarquia, createdAt: { [Op.between]: [inicioMes, fimMes] } },
+    });
+
+    // -----------------------------
+    // 3️⃣ TOTAL DE CONTRIBUIÇÕES (MÊS)
+    // -----------------------------
+    const totalContribuicoesMes = (await Contribuicao.sum("valor", {
+      where: { ...filtroHierarquia, data: { [Op.between]: [inicioMes, fimMes] } },
+    })) || 0;
+
+    // -----------------------------
+    // 4️⃣ DESPESAS (MÊS)
+    // -----------------------------
+    const totalDespesasMes = (await Despesa.sum("valor", {
+      where: { ...filtroHierarquia, data: { [Op.between]: [inicioMes, fimMes] } },
+    })) || 0;
+
+    const saldoFinanceiro = totalContribuicoesMes - totalDespesasMes;
+
+    // -----------------------------
+    // 5️⃣ PRÓXIMOS CULTOS
+    // -----------------------------
+    const proximosCultos = await Cultos.findAll({
+      where: { ...filtroHierarquia, dataHora: { [Op.gte]: hoje } },
+      include: [{ model: TipoCulto, attributes: ["nome"], required: false }],
+      order: [["dataHora", "ASC"]],
+    });
+
+    const nomesCultos = proximosCultos.map(c => c.TipoCulto ? c.TipoCulto.nome : "Tipo não definido");
+
+    // -----------------------------
+    // 6️⃣ ESTATÍSTICAS DE MEMBROS
+    // -----------------------------
+    const membrosData = await Membros.findAll({ 
+      where: filtroHierarquia, 
+      attributes: ['id','genero','data_nascimento','estado_civil','batizado'] 
+    });
+
+    const faixasEtarias = { '0-17':0, '18-30':0, '31-50':0, '51+':0 };
+    const distribuicaoGenero = { homens:0, mulheres:0 };
+    const estadoCivil = {};
+    const situacaoBatismo = { batizados:0, naoBatizados:0 };
+
+    const hojeAno = dayjs().year();
+
+    membrosData.forEach(m => {
+      if (m.data_nascimento) {
+        const idade = hojeAno - dayjs(m.data_nascimento).year();
+        if (idade <= 17) faixasEtarias['0-17']++;
+        else if (idade <= 30) faixasEtarias['18-30']++;
+        else if (idade <= 50) faixasEtarias['31-50']++;
+        else faixasEtarias['51+']++;
+      }
+      if (m.genero === 'Masculino') distribuicaoGenero.homens++;
+      else if (m.genero === 'Feminino') distribuicaoGenero.mulheres++;
+      if (m.estado_civil) estadoCivil[m.estado_civil] = (estadoCivil[m.estado_civil] || 0) + 1;
+      if (m.batizado) situacaoBatismo.batizados++;
+      else situacaoBatismo.naoBatizados++;
+    });
+
+    // -----------------------------
+    // 7️⃣ PRESENÇAS FUTURAS
+    // -----------------------------
+    const presencasFuturas = await Presencas.findAll({
+      where: { CultoId: { [Op.in]: proximosCultos.map(c => c.id) } }
+    });
+
+    // -----------------------------
+    // 8️⃣ ALERTAS / EVENTOS COM BAIXA PRESENÇA OU CONTRIBUIÇÃO
+    // -----------------------------
+    const PRESENCA_MINIMA = 50;      // limite mínimo de presença
+    const CONTRIBUICAO_MINIMA = 100; // limite mínimo de contribuição
+
+    const alertasEventos = [];
+    for (const culto of proximosCultos) {
+      const presenca = presencasFuturas.find(p => p.CultoId === culto.id);
+      const totalPresenca = presenca ? presenca.total : 0;
+
+      const totalContribuicaoCulto = await Contribuicao.sum("valor", {
+        where: { ...filtroHierarquia, CultoId: culto.id },
+      }) || 0;
+
+      if (totalPresenca < PRESENCA_MINIMA || totalContribuicaoCulto < CONTRIBUICAO_MINIMA) {
+        alertasEventos.push({
+          id: culto.id,
+          tipo: culto.TipoCulto ? culto.TipoCulto.nome : "Tipo não definido",
+          data: culto.dataHora,
+          presenca: totalPresenca,
+          contribuicao: totalContribuicaoCulto
+        });
+      }
+    }
+
+    // -----------------------------
+    // 9️⃣ EVENTOS PASSADOS
+    // -----------------------------
+    const eventosPassados = await Cultos.findAll({
+      where: { ...filtroHierarquia, dataHora: { [Op.lt]: hoje } },
+      include: [{ model: Presencas }],
+      order: [["dataHora", "DESC"]],
+    });
+
+    // -----------------------------
+    // 🔹 RESPOSTA FINAL
+    // -----------------------------
+    return res.status(200).json({
+      membros: {
+        total: totalMembros,
+        ativos: { total: totalAtivos, cor: "verde" },
+        inativos: { total: totalInativos, cor: "cinza" },
+        distribuicaoGenero,
+        faixasEtarias,
+        estadoCivil,
+        situacaoBatismo
+      },
+      novosMembrosMes,
+      financeiro: {
+        totalContribuicoesMes,
+        despesasMes: totalDespesasMes,
+        saldoFinanceiro
+      },
+      proximosEventos: {
+        quantidade: proximosCultos.length,
+        nomes: nomesCultos,
+        presencas: presencasFuturas,
+        alertas: alertasEventos
+      },
+      eventosPassados: eventosPassados.map(c => ({
+        id: c.id,
+        tipo: c.TipoCulto ? c.TipoCulto.nome : "Tipo não definido",
+        data: c.dataHora,
+        presencas: c.Presencas
+      })),
+      periodo: { inicio: inicioMes, fim: fimMes },
+    });
+
+  } catch (error) {
+    console.error("Erro ao gerar dados do dashboard:", error);
+    res.status(500).json({ message: "Erro ao gerar dados do dashboard" });
+  }
+});
+
+
+
+
+
+
+
+
+// 🔹 Rota que retorna dados completos (passados e futuros) para gráficos do dashboard
+router.get('/graficos', auth, async (req, res) => {
+  try {
+    const { SedeId, FilhalId } = req.usuario;
+    const hoje = dayjs().startOf("day").toDate();
+
+    // 🔹 Filtro hierárquico
+    const filtroHierarquia = {};
+    if (FilhalId) filtroHierarquia.FilhalId = FilhalId;
+    else if (SedeId) filtroHierarquia.SedeId = SedeId;
+
+    // --------------------------------------------------------
+    // 1️⃣ Membros ativos vs inativos
+    // --------------------------------------------------------
+    const totalAtivos = await Membros.count({ where: { ...filtroHierarquia, ativo: 1 } });
+    const totalInativos = await Membros.count({ where: { ...filtroHierarquia, ativo: 0 } });
+
+    // --------------------------------------------------------
+    // 2️⃣ Distribuição por gênero, faixa etária e batismo
+    // --------------------------------------------------------
+    const membrosData = await Membros.findAll({
+      where: filtroHierarquia,
+      attributes: ['genero', 'data_nascimento', 'batizado']
+    });
+
+    const distribuicaoGenero = { homens: 0, mulheres: 0 };
+    const faixasEtarias = { '0-17': 0, '18-30': 0, '31-50': 0, '51+': 0 };
+    const situacaoBatismo = { batizados: 0, naoBatizados: 0 };
+    const anoAtual = dayjs().year();
+
+    membrosData.forEach(m => {
+      // Gênero
+      if (m.genero === 'Masculino') distribuicaoGenero.homens++;
+      else if (m.genero === 'Feminino') distribuicaoGenero.mulheres++;
+
+      // Faixa etária
+      if (m.data_nascimento) {
+        const idade = anoAtual - dayjs(m.data_nascimento).year();
+        if (idade <= 17) faixasEtarias['0-17']++;
+        else if (idade <= 30) faixasEtarias['18-30']++;
+        else if (idade <= 50) faixasEtarias['31-50']++;
+        else faixasEtarias['51+']++;
+      }
+
+      // Batismo
+      if (m.batizado === true || m.batizado === 1) situacaoBatismo.batizados++;
+      else situacaoBatismo.naoBatizados++;
+    });
+
+    // --------------------------------------------------------
+    // 3️⃣ Contribuições vs Despesas do mês atual
+    // --------------------------------------------------------
+    const inicioMes = dayjs().startOf('month').toDate();
+    const fimMes = dayjs().endOf('month').toDate();
+
+    const totalContribuicoesMes = await Contribuicao.sum('valor', {
+      where: { ...filtroHierarquia, data: { [Op.between]: [inicioMes, fimMes] } }
+    }) || 0;
+
+    const totalDespesasMes = await Despesa.sum('valor', {
+      where: { ...filtroHierarquia, data: { [Op.between]: [inicioMes, fimMes] } }
+    }) || 0;
+
+    // --------------------------------------------------------
+    // 4️⃣ Cultos FUTUROS e suas presenças/contribuições
+    // --------------------------------------------------------
+    const cultosFuturos = await Cultos.findAll({
+      where: { ...filtroHierarquia, dataHora: { [Op.gte]: hoje } },
+      include: [{ model: TipoCulto, attributes: ['nome'], required: false }],
+      order: [['dataHora', 'ASC']]
+    });
+
+    const presencasFuturas = await Presencas.findAll({
+      where: { CultoId: { [Op.in]: cultosFuturos.map(c => c.id) } }
+    });
+
+    const dadosCultosFuturos = [];
+
+    for (const culto of cultosFuturos) {
+      const tipo = culto.TipoCulto ? culto.TipoCulto.nome : 'Não definido';
+      const presenca = presencasFuturas.find(p => p.CultoId === culto.id);
+      const totalPresenca = presenca ? presenca.total : 0;
+
+      const totalContribuicao = await Contribuicao.sum('valor', {
+        where: { ...filtroHierarquia, CultoId: culto.id }
+      }) || 0;
+
+      dadosCultosFuturos.push({
+        tipoCulto: tipo,
+        data: culto.dataHora,
+        totalPresenca,
+        totalContribuicao
+      });
+    }
+
+    // --------------------------------------------------------
+    // 5️⃣ Cultos PASSADOS e suas presenças/contribuições
+    // --------------------------------------------------------
+    const cultosPassados = await Cultos.findAll({
+      where: { ...filtroHierarquia, dataHora: { [Op.lt]: hoje } },
+      include: [{ model: TipoCulto, attributes: ['nome'], required: false }],
+      order: [['dataHora', 'DESC']]
+    });
+
+    const presencasPassadas = await Presencas.findAll({
+      where: { CultoId: { [Op.in]: cultosPassados.map(c => c.id) } }
+    });
+
+    const dadosCultosPassados = [];
+
+    for (const culto of cultosPassados) {
+      const tipo = culto.TipoCulto ? culto.TipoCulto.nome : 'Não definido';
+      const presenca = presencasPassadas.find(p => p.CultoId === culto.id);
+      const totalPresenca = presenca ? presenca.total : 0;
+
+      const totalContribuicao = await Contribuicao.sum('valor', {
+        where: { ...filtroHierarquia, CultoId: culto.id }
+      }) || 0;
+
+      dadosCultosPassados.push({
+        tipoCulto: tipo,
+        data: culto.dataHora,
+        totalPresenca,
+        totalContribuicao
+      });
+    }
+
+    // --------------------------------------------------------
+    // 🔹 Resposta final
+    // --------------------------------------------------------
+    res.status(200).json({
+      membrosAtivosInativos: { ativos: totalAtivos, inativos: totalInativos },
+      distribuicaoGenero,
+      faixasEtarias,
+      situacaoBatismo,
+      financeiro: { contribMes: totalContribuicoesMes, despMes: totalDespesasMes },
+      cultos: {
+        futuros: dadosCultosFuturos,
+        passados: dadosCultosPassados
+      }
+    });
+
+  } catch (error) {
+    console.error('Erro ao gerar dados para gráficos:', error);
+    res.status(500).json({ message: 'Erro ao gerar dados para gráficos' });
+  }
+});
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// Rota para buscar todas as sedes com suas filhais e quantidade de membros (usando map)
 router.get('/sedes-com-filhais', async (req, res) => {
   try {
+    // Busca todas as sedes com suas filhais
     const sedes = await Sede.findAll({
       include: [
         {
           model: Filhal,
-          attributes: ['id', 'nome', 'endereco', 'telefone', 'email', 'status'] // campos que quer retornar
+          attributes: ['id', 'nome', 'endereco', 'telefone', 'email', 'status']
         }
       ],
       order: [
@@ -2140,14 +2558,37 @@ router.get('/sedes-com-filhais', async (req, res) => {
       ]
     });
 
-    res.status(200).json(sedes);
+    // Para cada sede e filhal, buscamos a quantidade de membros
+    const sedesComMembros = await Promise.all(
+      sedes.map(async (sede) => {
+        // Contar membros da sede
+        const membrosSede = await Membros.count({ where: { SedeId: sede.id } });
+
+        // Para cada filhal, contar membros
+        const filhaisComMembros = await Promise.all(
+          sede.Filhals.map(async (filhal) => {
+            const membrosFilhal = await Membros.count({ where: { FilhalId: filhal.id } });
+            return {
+              ...filhal.dataValues,
+              quantidadeMembros: membrosFilhal
+            };
+          })
+        );
+
+        return {
+          ...sede.dataValues,
+          quantidadeMembros: membrosSede,
+          Filhals: filhaisComMembros
+        };
+      })
+    );
+
+    res.status(200).json(sedesComMembros);
   } catch (error) {
     console.error('Erro ao buscar sedes com filhais:', error);
     res.status(500).json({ message: 'Erro interno do servidor.' });
   }
 });
-
-
 
 
 
@@ -2838,6 +3279,139 @@ router.patch('/:tipo/:id/status', async (req, res) => {
 
 
 
+router.delete("/sedes/:id/com-filhais", async (req, res) => {
+  const sedeId = req.params.id;
+
+  try {
+    // Buscar todas as filhals da sede
+    const filhals = await Filhal.findAll({ where: { SedeId: sedeId } });
+    const filhalIds = filhals.map(f => f.id);
+
+    // 1. Se houver filhals, deletar dados associados às filhals
+    if (filhalIds.length > 0) {
+      // Buscar Cultos das filhals para deletar presencas
+      const cultosFilhals = await Cultos.findAll({ where: { FilhalId: { [Op.in]: filhalIds } } });
+      const cultoIdsFilhals = cultosFilhals.map(c => c.id);
+
+      await Promise.all([
+        Usuarios.destroy({ where: { FilhalId: { [Op.in]: filhalIds } } }),
+        Membros.destroy({ where: { FilhalId: { [Op.in]: filhalIds } } }),
+        Cargo.destroy({ where: { FilhalId: { [Op.in]: filhalIds } } }),
+        Contribuicao.destroy({ where: { FilhalId: { [Op.in]: filhalIds } } }),
+        TipoContribuicao.destroy({ where: { FilhalId: { [Op.in]: filhalIds } } }),
+        Despesa.destroy({ where: { FilhalId: { [Op.in]: filhalIds } } }),
+        Cultos.destroy({ where: { FilhalId: { [Op.in]: filhalIds } } }),
+        Presencas.destroy({ where: { CultoId: { [Op.in]: cultoIdsFilhals } } }),
+        TipoCulto.destroy({ where: { FilhalId: { [Op.in]: filhalIds } } }),
+        Departamentos.destroy({ where: { FilhalId: { [Op.in]: filhalIds } } }),
+      ]);
+
+      // Tabelas intermediárias que não possuem FilhalId
+      const membrosFilhal = await Membros.findAll({ where: { FilhalId: { [Op.in]: filhalIds } } });
+      const membroIdsFilhal = membrosFilhal.map(m => m.id);
+
+      if (membroIdsFilhal.length > 0) {
+        await Promise.all([
+          CargoMembro.destroy({ where: { MembroId: { [Op.in]: membroIdsFilhal } } }),
+          DepartamentoMembros.destroy({ where: { MembroId: { [Op.in]: membroIdsFilhal } } }),
+          DadosAcademicos.destroy({ where: { MembroId: { [Op.in]: membroIdsFilhal } } }),
+          DadosCristaos.destroy({ where: { MembroId: { [Op.in]: membroIdsFilhal } } }),
+          Diversos.destroy({ where: { MembroId: { [Op.in]: membroIdsFilhal } } }),
+        ]);
+      }
+
+      // Deletar as filhals
+      await Filhal.destroy({ where: { SedeId: sedeId } });
+    }
+
+    // 2. Deletar dados associados apenas à sede
+    const cultosSede = await Cultos.findAll({ where: { SedeId: sedeId } });
+    const cultoIdsSede = cultosSede.map(c => c.id);
+
+    await Promise.all([
+      Usuarios.destroy({ where: { SedeId: sedeId } }),
+      Membros.destroy({ where: { SedeId: sedeId } }),
+      Cargo.destroy({ where: { SedeId: sedeId } }),
+      Contribuicao.destroy({ where: { SedeId: sedeId } }),
+      TipoContribuicao.destroy({ where: { SedeId: sedeId } }),
+      Despesa.destroy({ where: { SedeId: sedeId } }),
+      Cultos.destroy({ where: { SedeId: sedeId } }),
+      Presencas.destroy({ where: { CultoId: { [Op.in]: cultoIdsSede } } }),
+      TipoCulto.destroy({ where: { SedeId: sedeId } }),
+      Departamentos.destroy({ where: { SedeId: sedeId } }),
+    ]);
+
+    const membrosSede = await Membros.findAll({ where: { SedeId: sedeId } });
+    const membroIdsSede = membrosSede.map(m => m.id);
+
+    if (membroIdsSede.length > 0) {
+      await Promise.all([
+        CargoMembro.destroy({ where: { MembroId: { [Op.in]: membroIdsSede } } }),
+        DepartamentoMembros.destroy({ where: { MembroId: { [Op.in]: membroIdsSede } } }),
+        DadosAcademicos.destroy({ where: { MembroId: { [Op.in]: membroIdsSede } } }),
+        DadosCristaos.destroy({ where: { MembroId: { [Op.in]: membroIdsSede } } }),
+        Diversos.destroy({ where: { MembroId: { [Op.in]: membroIdsSede } } }),
+      ]);
+    }
+
+    // 3. Deletar a sede
+    await Sede.destroy({ where: { id: sedeId } });
+
+    res.status(200).json({ message: "Sede e todos os dados associados deletados com sucesso." });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Erro ao deletar a sede." });
+  }
+});
+
+
+
+
+
+
+
+
+router.delete("/filhal/:id", async (req, res) => {
+  const filhalId = req.params.id;
+
+  try {
+    const cultosFilhal = await Cultos.findAll({ where: { FilhalId: filhalId } });
+    const cultoIdsFilhal = cultosFilhal.map(c => c.id);
+
+    await Promise.all([
+      Usuarios.destroy({ where: { FilhalId: filhalId } }),
+      Membros.destroy({ where: { FilhalId: filhalId } }),
+      Cargo.destroy({ where: { FilhalId: filhalId } }),
+      Contribuicao.destroy({ where: { FilhalId: filhalId } }),
+      TipoContribuicao.destroy({ where: { FilhalId: filhalId } }),
+      Despesa.destroy({ where: { FilhalId: filhalId } }),
+      Cultos.destroy({ where: { FilhalId: filhalId } } ),
+      Presencas.destroy({ where: { CultoId: { [Op.in]: cultoIdsFilhal } } }),
+      TipoCulto.destroy({ where: { FilhalId: filhalId } }),
+      Departamentos.destroy({ where: { FilhalId: filhalId } }),
+    ]);
+
+    const membrosFilhal = await Membros.findAll({ where: { FilhalId: filhalId } });
+    const membroIds = membrosFilhal.map(m => m.id);
+
+    if (membroIds.length > 0) {
+      await Promise.all([
+        CargoMembro.destroy({ where: { MembroId: { [Op.in]: membroIds } } }),
+        DepartamentoMembros.destroy({ where: { MembroId: { [Op.in]: membroIds } } }),
+        DadosAcademicos.destroy({ where: { MembroId: { [Op.in]: membroIds } } }),
+        DadosCristaos.destroy({ where: { MembroId: { [Op.in]: membroIds } } }),
+        Diversos.destroy({ where: { MembroId: { [Op.in]: membroIds } } }),
+      ]);
+    }
+
+    await Filhal.destroy({ where: { id: filhalId } });
+
+    res.status(200).json({ message: "Filhal e todos os dados associados deletados com sucesso." });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Erro ao deletar a filhal." });
+  }
+});
 
 
 

@@ -1,4 +1,3 @@
-// GestaoIgrejas.jsx
 import React, { useEffect, useState, useMemo } from "react";
 import {
   Container,
@@ -29,6 +28,10 @@ import {
   FormControlLabel,
   Slide,
   Fade,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from "@mui/material";
 import {
   Check,
@@ -38,23 +41,12 @@ import {
   ExpandMore,
   Brightness4,
   Brightness7,
-  Close,   // ✅ adicionado aqui do icons-material
+  Close,
+  DeleteForever,
 } from "@mui/icons-material";
 import { createTheme, ThemeProvider, styled } from "@mui/material/styles";
 import api from "../api/axiosConfig";
 import CadastrarIgrejaDono from "../components/CadastrarIgrejaDono";
-
-
-/**
- * Visual premium:
- * - Glassmorphism cards
- * - Dark/Light theme toggle
- * - Gradientes no topo
- * - Animações suaves com Fade/Slide
- * - Snackbars para feedback
- *
- * Substitua diretamente o seu arquivo por este. Mantive os nomes em pt-br.
- */
 
 /* ---------- Styled helpers ---------- */
 const GlassCard = styled(Card)(({ theme }) => ({
@@ -108,15 +100,13 @@ export default function GestaoIgrejas() {
     email: "",
   });
 
-  // theme mode
-  const [mode, setMode] = useState("dark");
+  const [confirmDelete, setConfirmDelete] = useState({ open: false, sede: null, filhal: null });
 
-  // snackbars
+  const [mode, setMode] = useState("dark");
   const [snack, setSnack] = useState({ open: false, message: "", severity: "success" });
 
   useEffect(() => {
     fetchSedes();
-    // eslint-disable-next-line
   }, []);
 
   const fetchSedes = async () => {
@@ -145,6 +135,7 @@ export default function GestaoIgrejas() {
   const handleOpenSedeModal = () => setModalSedeOpen(true);
   const handleCloseSedeModal = () => setModalSedeOpen(false);
 
+  // 🔁 Atualizar status
   const atualizarStatus = async ({ tipo, id }, novoStatus) => {
     try {
       await api.patch(`/${tipo}/${id}/status`, { status: novoStatus });
@@ -152,7 +143,6 @@ export default function GestaoIgrejas() {
       setSedes((prev) =>
         prev.map((sede) => {
           if (tipo === "sedes" && sede.id === id) return { ...sede, status: novoStatus };
-
           if (sede.Filhals) {
             return {
               ...sede,
@@ -161,7 +151,6 @@ export default function GestaoIgrejas() {
               ),
             };
           }
-
           return sede;
         })
       );
@@ -170,6 +159,45 @@ export default function GestaoIgrejas() {
     } catch (err) {
       console.error("Erro ao atualizar status:", err);
       setSnack({ open: true, message: "Erro ao atualizar status.", severity: "error" });
+    }
+  };
+
+  // 🗑️ Excluir sede e suas filiais
+  const handleDeleteSede = async () => {
+    const sede = confirmDelete.sede;
+    if (!sede) return;
+
+    try {
+      await api.delete(`/sedes/${sede.id}/com-filhais`);
+      setSedes((prev) => prev.filter((s) => s.id !== sede.id));
+      setSnack({ open: true, message: "Sede e filiais removidas com sucesso.", severity: "success" });
+    } catch (err) {
+      console.error("Erro ao excluir sede:", err);
+      setSnack({ open: true, message: "Erro ao excluir sede.", severity: "error" });
+    } finally {
+      setConfirmDelete({ open: false, sede: null, filhal: null });
+    }
+  };
+
+  // 🗑️ Excluir filial individual
+  const handleDeleteFilhal = async () => {
+    const filhal = confirmDelete.filhal;
+    if (!filhal) return;
+
+    try {
+      await api.delete(`/filhal/${filhal.id}`);
+      setSedes((prev) =>
+        prev.map((sede) => ({
+          ...sede,
+          Filhals: sede.Filhals ? sede.Filhals.filter((f) => f.id !== filhal.id) : [],
+        }))
+      );
+      setSnack({ open: true, message: "Filial removida com sucesso.", severity: "success" });
+    } catch (err) {
+      console.error("Erro ao excluir filial:", err);
+      setSnack({ open: true, message: "Erro ao excluir filial.", severity: "error" });
+    } finally {
+      setConfirmDelete({ open: false, sede: null, filhal: null });
     }
   };
 
@@ -204,7 +232,7 @@ export default function GestaoIgrejas() {
           mode,
           ...(mode === "light"
             ? {
-                primary: { main: "#0f52ba" }, // azul premium
+                primary: { main: "#0f52ba" },
                 background: { default: "#f6f9ff", paper: "#ffffff" },
                 text: { primary: "#072146" },
               }
@@ -239,9 +267,10 @@ export default function GestaoIgrejas() {
           minHeight: "100vh",
           py: 6,
           px: { xs: 2, sm: 4 },
-          background: mode === "dark"
-            ? "radial-gradient(1200px 400px at 10% 10%, rgba(63,81,181,0.06), transparent), linear-gradient(180deg, rgba(0,0,0,0.25), transparent)"
-            : "radial-gradient(1200px 400px at 90% 20%, rgba(33,150,243,0.06), transparent), linear-gradient(180deg, rgba(255,255,255,0.6), transparent)",
+          background:
+            mode === "dark"
+              ? "radial-gradient(1200px 400px at 10% 10%, rgba(63,81,181,0.06), transparent), linear-gradient(180deg, rgba(0,0,0,0.25), transparent)"
+              : "radial-gradient(1200px 400px at 90% 20%, rgba(33,150,243,0.06), transparent), linear-gradient(180deg, rgba(255,255,255,0.6), transparent)",
         }}
       >
         <Container maxWidth="lg">
@@ -312,7 +341,13 @@ export default function GestaoIgrejas() {
                 <Box key={sede.id}>
                   <GlassCard>
                     <CardContent>
-                      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 2, flexWrap: "wrap" }}>
+                      <Box sx={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        gap: 2,
+                        flexWrap: "wrap"
+                      }}>
                         <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
                           <Avatar
                             sx={{
@@ -328,7 +363,7 @@ export default function GestaoIgrejas() {
 
                           <Box>
                             <Typography variant="h5" sx={{ fontWeight: 800 }}>
-                              {sede.nome}
+                              {sede.nome} ({sede.quantidadeMembros || 0} membros)
                             </Typography>
                             <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
                               {sede.endereco || "-"}
@@ -344,21 +379,37 @@ export default function GestaoIgrejas() {
                             sx={{ fontWeight: 700 }}
                           />
 
-                          {/* quick status actions */}
-                          {Object.keys(statusProps).map((st) => st !== sede.status && (
-                            <Tooltip key={st} title={`Mudar para ${statusProps[st].label}`}>
-                              <IconButton
-                                onClick={() => atualizarStatus({ tipo: 'sedes', id: sede.id }, st)}
-                                color="primary"
-                                sx={{
-                                  bgcolor: (t) => t.palette.mode === "dark" ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)",
-                                  "&:hover": { bgcolor: (t) => t.palette.mode === "dark" ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)" }
-                                }}
-                              >
-                                {statusProps[st].icon}
-                              </IconButton>
-                            </Tooltip>
-                          ))}
+                          {/* Botões de status */}
+                          {Object.keys(statusProps).map(
+                            (st) =>
+                              st !== sede.status && (
+                                <Tooltip key={st} title={`Mudar para ${statusProps[st].label}`}>
+                                  <IconButton
+                                    onClick={() =>
+                                      atualizarStatus({ tipo: "sedes", id: sede.id }, st)
+                                    }
+                                    color="primary"
+                                  >
+                                    {statusProps[st].icon}
+                                  </IconButton>
+                                </Tooltip>
+                              )
+                          )}
+
+                          {/* 🗑️ Botão de exclusão sede */}
+                          <Tooltip title="Eliminar esta igreja e todas as filiais">
+                            <IconButton
+                              onClick={() => setConfirmDelete({ open: true, sede })}
+                              sx={{
+                                color: "#fff",
+                                bgcolor: "#d32f2f",
+                                "&:hover": { bgcolor: "#b71c1c", transform: "scale(1.1)" },
+                                boxShadow: "0 4px 12px rgba(211,47,47,0.4)",
+                              }}
+                            >
+                              <DeleteForever />
+                            </IconButton>
+                          </Tooltip>
 
                           <Button
                             variant="outlined"
@@ -375,7 +426,9 @@ export default function GestaoIgrejas() {
 
                       <Accordion sx={{ borderRadius: 2, background: "transparent", boxShadow: "none" }}>
                         <AccordionSummary expandIcon={<ExpandMore />}>
-                          <Typography sx={{ fontWeight: 700 }}>Filiais ({sede.Filhals ? sede.Filhals.length : 0})</Typography>
+                          <Typography sx={{ fontWeight: 700 }}>
+                            Filiais ({sede.Filhals ? sede.Filhals.length : 0})
+                          </Typography>
                         </AccordionSummary>
 
                         <AccordionDetails>
@@ -387,7 +440,10 @@ export default function GestaoIgrejas() {
                                     sx={{
                                       borderRadius: 2,
                                       mb: 1,
-                                      bgcolor: (t) => (t.palette.mode === "dark" ? "rgba(255,255,255,0.02)" : "rgba(0,0,0,0.03)"),
+                                      bgcolor: (t) =>
+                                        t.palette.mode === "dark"
+                                          ? "rgba(255,255,255,0.02)"
+                                          : "rgba(0,0,0,0.03)",
                                     }}
                                     secondaryAction={
                                       <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
@@ -398,34 +454,56 @@ export default function GestaoIgrejas() {
                                           icon={statusProps[filhal.status]?.icon || <></>}
                                           sx={{ fontWeight: 700 }}
                                         />
-                                        {Object.keys(statusProps).map((st) => st !== filhal.status && (
-                                          <Tooltip key={st} title={`Mudar para ${statusProps[st].label}`}>
-                                            <IconButton
-                                              size="small"
-                                              onClick={() => atualizarStatus({ tipo: 'filhais', id: filhal.id }, st)}
-                                              sx={{
-                                                bgcolor: (t) => t.palette.mode === "dark" ? "rgba(255,255,255,0.02)" : "rgba(0,0,0,0.03)",
-                                                "&:hover": { transform: "scale(1.05)" },
-                                              }}
-                                            >
-                                              {statusProps[st].icon}
-                                            </IconButton>
-                                          </Tooltip>
-                                        ))}
+                                        {Object.keys(statusProps).map(
+                                          (st) =>
+                                            st !== filhal.status && (
+                                              <Tooltip key={st} title={`Mudar para ${statusProps[st].label}`}>
+                                                <IconButton
+                                                  size="small"
+                                                  onClick={() =>
+                                                    atualizarStatus({ tipo: "filhais", id: filhal.id }, st)
+                                                  }
+                                                >
+                                                  {statusProps[st].icon}
+                                                </IconButton>
+                                              </Tooltip>
+                                            )
+                                        )}
+
+                                        {/* 🗑️ Botão de exclusão filial */}
+                                        <Tooltip title="Excluir esta filial">
+                                          <IconButton
+                                            size="small"
+                                            onClick={() => setConfirmDelete({ open: true, sede: null, filhal })}
+                                            sx={{
+                                              color: "#fff",
+                                              bgcolor: "#d32f2f",
+                                              "&:hover": { bgcolor: "#b71c1c", transform: "scale(1.1)" },
+                                            }}
+                                          >
+                                            <DeleteForever fontSize="small" />
+                                          </IconButton>
+                                        </Tooltip>
                                       </Box>
                                     }
                                   >
                                     <ListItemText
-                                      primary={<Typography sx={{ fontWeight: 700 }}>{filhal.nome}</Typography>}
+                                      primary={
+                                        <Typography sx={{ fontWeight: 700 }}>
+                                          {filhal.nome} ({filhal.quantidadeMembros || 0} membros)
+                                        </Typography>
+                                      }
                                       secondary={`End: ${filhal.endereco || "-"} • Tel: ${filhal.telefone || "-"} • Email: ${filhal.email || "-"}`}
                                     />
                                   </ListItem>
-                                <Divider component="li" />
+                                  <Divider component="li" />
                                 </React.Fragment>
                               ))}
                             </List>
                           ) : (
-                            <Typography color="text.secondary">Nenhuma filial cadastrada para esta sede.</Typography>
+                            <Typography color="text.secondary">
+                              Nenhuma filial cadastrada para esta sede.
+                            </Typography>
                           )}
                         </AccordionDetails>
                       </Accordion>
@@ -436,44 +514,37 @@ export default function GestaoIgrejas() {
             </Stack>
           )}
 
-          {/* Modal Filial + Usuario */}
-         {/* Modal Filial + Usuario */}
-<Modal open={modalFilhalOpen} onClose={handleCloseFilhalModal}>
-  <Box
-    sx={{
-      position: "absolute",
-      top: "50%",
-      left: "50%",
-      transform: "translate(-50%, -50%)",
-      width: { xs: "92%", sm: 620 },
-      maxHeight: "80vh",
-      bgcolor: "background.paper",
-      boxShadow: 30,
-      p: { xs: 3, sm: 4 },
-      borderRadius: 3,
-      overflowY: "auto",
-    }}
-  >
-    {/* Cabeçalho com botão de fechar */}
-    <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
-      <Typography variant="h5" sx={{ fontWeight: 800 }}>
-        {selectedSede
-          ? `Cadastrar Filial e Usuário — ${selectedSede.nome}`
-          : "Cadastrar Filial e Usuário"}
-      </Typography>
-      <IconButton onClick={handleCloseFilhalModal}>
-        <Close />
-      </IconButton>
-    </Box>
+          {/* Modal Filial + Usuário */}
+          <Modal open={modalFilhalOpen} onClose={handleCloseFilhalModal}>
+            <Box
+              sx={{
+                position: "absolute",
+                top: "50%",
+                left: "50%",
+                transform: "translate(-50%, -50%)",
+                width: { xs: "92%", sm: 620 },
+                maxHeight: "80vh",
+                bgcolor: "background.paper",
+                boxShadow: 30,
+                p: { xs: 3, sm: 4 },
+                borderRadius: 3,
+                overflowY: "auto",
+              }}
+            >
+              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
+                <Typography variant="h5" sx={{ fontWeight: 800 }}>
+                  {selectedSede ? `Cadastrar Filial — ${selectedSede.nome}` : "Cadastrar Filial"}
+                </Typography>
+                <IconButton onClick={handleCloseFilhalModal}>
+                  <Close />
+                </IconButton>
+              </Box>
 
-    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-      Preencha os dados da filial e do usuário responsável.
-    </Typography>
-
-    <CadastrarIgrejaDono sedeId={selectedSede?.id} />
-  </Box>
-</Modal>
-
+              {selectedSede && (
+                <CadastrarIgrejaDono sedeId={selectedSede.id} onSuccess={fetchSedes} />
+              )}
+            </Box>
+          </Modal>
 
           {/* Modal Nova Sede */}
           <Modal open={modalSedeOpen} onClose={handleCloseSedeModal}>
@@ -485,39 +556,61 @@ export default function GestaoIgrejas() {
                 top: "50%",
                 left: "50%",
                 transform: "translate(-50%, -50%)",
-                width: { xs: "92%", sm: 520 },
+                width: { xs: "90%", sm: 500 },
                 bgcolor: "background.paper",
-                boxShadow: 30,
                 p: 4,
+                boxShadow: 24,
                 borderRadius: 3,
               }}
             >
-              <Typography variant="h5" sx={{ fontWeight: 800, mb: 1 }}>
-                Cadastrar Nova Sede
+              <Typography variant="h5" sx={{ mb: 2, fontWeight: 800 }}>
+                Nova Sede
               </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                Insira as informações básicas da sede.
-              </Typography>
-
-              <TextField required name="nome" label="Nome da Sede" fullWidth margin="normal" value={novaSede.nome} onChange={handleNovaSedeChange} />
-              <TextField name="endereco" label="Endereço" fullWidth margin="normal" value={novaSede.endereco} onChange={handleNovaSedeChange} />
-              <TextField name="telefone" label="Telefone" fullWidth margin="normal" value={novaSede.telefone} onChange={handleNovaSedeChange} />
-              <TextField name="email" label="Email" fullWidth margin="normal" value={novaSede.email} onChange={handleNovaSedeChange} />
-
-              <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 2, mt: 2 }}>
-                <Button onClick={handleCloseSedeModal} sx={{ textTransform: "none" }}>
-                  Cancelar
-                </Button>
-                <Button type="submit" variant="contained" sx={{ borderRadius: 2, textTransform: "none" }}>
-                  Cadastrar
-                </Button>
-              </Box>
+              <TextField label="Nome" name="nome" value={novaSede.nome} onChange={handleNovaSedeChange} fullWidth required sx={{ mb: 2 }} />
+              <TextField label="Endereço" name="endereco" value={novaSede.endereco} onChange={handleNovaSedeChange} fullWidth required sx={{ mb: 2 }} />
+              <TextField label="Telefone" name="telefone" value={novaSede.telefone} onChange={handleNovaSedeChange} fullWidth sx={{ mb: 2 }} />
+              <TextField label="Email" name="email" value={novaSede.email} onChange={handleNovaSedeChange} fullWidth sx={{ mb: 3 }} />
+              <Button type="submit" variant="contained" fullWidth sx={{ py: 1.2, borderRadius: 10 }}>Salvar</Button>
             </Box>
           </Modal>
 
-          {/* Snackbar para feedback */}
-          <Snackbar open={snack.open} autoHideDuration={3500} onClose={closeSnack} anchorOrigin={{ vertical: "bottom", horizontal: "right" }}>
-            <Alert onClose={closeSnack} severity={snack.severity} sx={{ width: "100%" }}>
+          {/* Dialogo de confirmação */}
+          <Dialog open={confirmDelete.open} onClose={() => setConfirmDelete({ open: false, sede: null, filhal: null })}>
+            <DialogTitle sx={{ fontWeight: 800, color: "error.main" }}>
+              Confirmar Exclusão
+            </DialogTitle>
+            <DialogContent>
+              <Typography>
+                {confirmDelete.sede
+                  ? `Tem certeza que deseja excluir ${confirmDelete.sede.nome} e todas as suas filiais? Esta ação não pode ser desfeita.`
+                  : confirmDelete.filhal
+                  ? `Tem certeza que deseja excluir a filial ${confirmDelete.filhal.nome}? Esta ação não pode ser desfeita.`
+                  : ""}
+              </Typography>
+            </DialogContent>
+            <DialogActions>
+              <Button onClick={() => setConfirmDelete({ open: false, sede: null, filhal: null })}>
+                Cancelar
+              </Button>
+              <Button
+                onClick={confirmDelete.sede ? handleDeleteSede : handleDeleteFilhal}
+                color="error"
+                variant="contained"
+                sx={{ borderRadius: 8 }}
+              >
+                Excluir
+              </Button>
+            </DialogActions>
+          </Dialog>
+
+          {/* Snackbar */}
+          <Snackbar
+            open={snack.open}
+            autoHideDuration={4000}
+            onClose={closeSnack}
+            anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+          >
+            <Alert severity={snack.severity} onClose={closeSnack}>
               {snack.message}
             </Alert>
           </Snackbar>

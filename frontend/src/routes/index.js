@@ -28,6 +28,16 @@ import ListaCultos from '../pages/Cultos/ListaCultos';
 import GestaoDepartamento from '../pages/GestaoDepartamentos';
 import Perfil from '../pages/Perfil';
 
+// Novas páginas públicas
+import SobreEquipe from '../components/SobreEquipe';
+import Planos from '../components/Planos';
+import Testemunhos from '../components/Testemunhos';
+import Contato from '../components/Contato';
+import Servicos from '../components/servicos';
+
+// Dashboard agora é público
+import Dashboard from '../pages/Dashboard';
+
 // ---------------- AuthWrapper ---------------- //
 function AuthWrapper({ children }) {
   const [isAllowed, setIsAllowed] = useState(null); // null = carregando
@@ -47,24 +57,21 @@ function AuthWrapper({ children }) {
 
         const usuario = res.data.usuario;
 
-        // Super admin pode acessar tudo, mesmo sem sede ou filhal
+        // Super admin pode acessar tudo
         if (usuario.funcao === 'super_admin') {
           setIsAllowed(true);
           return;
         }
 
         // Usuário comum:
-        // - Sempre pode acessar /membros
-        // - Para outras rotas, precisa estar ativo
         const path = window.location.pathname;
         if (path === '/membros') {
           setIsAllowed(true);
           return;
         }
 
-        // Para demais rotas, verifica status ativo
-        setIsAllowed(true); // aqui você pode adicionar lógica adicional se quiser bloquear rotas específicas para status inativo
-
+        // Pode adicionar outras verificações de status ativo aqui
+        setIsAllowed(true);
       } catch (err) {
         setIsAllowed(false);
       }
@@ -89,8 +96,14 @@ export default function AppRoutes() {
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
         <Route path="/criar-usuarios" element={<CriarUsuarios />} />
+        <Route path="/sobre-equipe" element={<SobreEquipe />} />
+        <Route path="/planos" element={<Planos />} />
+        <Route path="/testemunhos" element={<Testemunhos />} />
+        <Route path="/contato" element={<Contato />} />
+        <Route path="/servicos" element={<Servicos />} />
+        <Route path="/dashboard" element={<Dashboard />} /> {/* <-- agora é público */}
 
-        {/* Rotas protegidas */}
+        {/* Rotas protegidas (usuários autenticados) */}
         <Route element={<AuthWrapper><Outlet /></AuthWrapper>}>
           <Route path="/membros" element={<Membros />} />
           <Route path="/ministerios" element={<Ministerios />} />
@@ -114,11 +127,8 @@ export default function AppRoutes() {
           <Route path="/perfil" element={<Perfil />} />
         </Route>
 
-
-        
-
         {/* Redirecionamento genérico caso rota não exista */}
-        <Route path="*" element={<Navigate to="/login" replace />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Router>
   );
