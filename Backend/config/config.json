@@ -3,21 +3,21 @@
     "username": "root",
     "password": "12345678",
     "database": "igreja",
-    "host": "168.231.112.34",
+    "host": "localhost",
     "dialect": "mysql"
   },
   "test": {
     "username": "root",
     "password": "12345678",
     "database": "igreja",
-    "host": "168.231.112.34",
+    "host": "localhost",
     "dialect": "mysql"
   },
   "production": {
     "username": "root",
     "password": "12345678",
     "database": "igreja",
-    "host": "168.231.112.34",
+    "host": "localhost",
     "dialect": "mysql"
   }
 }
