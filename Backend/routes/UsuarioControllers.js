@@ -5,7 +5,7 @@ const bcrypt = require("bcrypt")
 const Usuarios = require("../modells/Usuarios")
 
 const Membros = require("../modells/Membros");
-
+const DadosCristaos = require("../modells/DadosCristaos");
 
 const Cargo = require("../modells/Cargo");
 
@@ -23,9 +23,29 @@ const Despesa = require("../modells/Despesas");
 const CargoMembro = require("../modells/CargoMembro");
 
 
-const Cultos= require("../modells/Cultos")
 const Presencas = require("../modells/Presencas")
+
+
 const TipoCulto = require("../modells/TipoCulto");
+
+
+
+
+const Cultos= require("../modells/Cultos");
+
+
+
+const Funcionarios= require("../modells/Funcionarios");
+
+
+const Salarios= require("../modells/Salarios");
+
+
+const Subsidios= require("../modells/Subsidios");
+
+
+
+const Descontos = require("../modells/Descontos");
 
 
 
@@ -37,11 +57,22 @@ const DepartamentoMembros = require("../modells/DptMembros");
 
 
 
+const Notificacao = require("../modells/Notificacoes");
+
+
 
 
 const DadosAcademicos = require("../modells/DadosAcademicos");
-const DadosCristaos = require("../modells/DadosCristaos");
+
 const Diversos = require("../modells/Diversos");
+
+
+
+const Atendimento = require("../modells/Atendimento");
+
+
+
+const AgendaPastoral = require("../modells/AgendaPastoral");
 
 
 
@@ -220,6 +251,42 @@ router.post("/usuarios", async (req, res) => {
 
 
 
+// GET /usuarios - lista todos os usuários com filtro hierárquico
+router.get("/usuarios", auth, async (req, res) => {
+  try {
+    const { SedeId, FilhalId } = req.usuario;
+
+    let where = {};
+
+    // Filtro hierárquico
+    if (SedeId && !FilhalId) {
+      where.SedeId = SedeId;
+    } else if (SedeId && FilhalId) {
+      where.FilhalId = FilhalId;
+    }
+
+    const usuarios = await Usuarios.findAll({
+      where,
+      attributes: ["id", "nome", "funcao", "MembroId", "createdAt"],
+      order: [["createdAt", "DESC"]],
+    });
+
+    res.status(200).json({
+      message: "Lista de usuários",
+      total: usuarios.length,
+      usuarios,
+    });
+  } catch (error) {
+    console.error("Erro ao buscar usuários:", error);
+    res.status(500).json({
+      message: "Erro ao buscar usuários",
+      error: error.message,
+    });
+  }
+});
+
+
+
 const jwt = require('jsonwebtoken');
 
 const JWT_SECRET = 'berna12890i'; // ⚠️ Coloque uma senha mais segura para produção
@@ -284,92 +351,566 @@ router.post('/login', async (req, res) => {
 
 
 
-// Rota para buscar um membro pelo ID
 router.get('/perfil-membros/:id', auth, async (req, res) => {
+try {
+const membroId = req.params.id;
+
+
+// Buscar o membro com todos os campos necessários
+const membro = await Membros.findOne({
+  where: { id: membroId },
+  attributes: [
+    'id',
+    'nome',
+    'foto',
+    'genero',
+    'data_nascimento',
+    'estado_civil',
+    'bi',
+    'telefone',
+    'email',
+    'endereco_rua',
+    'endereco_bairro',
+    'endereco_cidade',
+    'endereco_provincia',
+    'grau_academico',
+    'profissao',
+    'batizado',
+    'data_batismo',
+    'ativo'
+  ],
+});
+
+if (!membro) {
+  return res.status(404).json({ message: 'Membro não encontrado.' });
+}
+
+// Buscar departamentos do membro
+const deptosIds = await DepartamentoMembros.findAll({
+  where: { MembroId: membroId },
+  attributes: ['DepartamentoId']
+});
+const departamentoIds = deptosIds.map(d => d.DepartamentoId);
+const departamentos = await Departamentos.findAll({
+  where: { id: departamentoIds },
+  attributes: ['id', 'nome']
+});
+
+// Buscar cargos do membro
+const cargosIds = await CargoMembro.findAll({
+  where: { MembroId: membroId },
+  attributes: ['CargoId']
+});
+const cargoIds = cargosIds.map(c => c.CargoId);
+const cargos = await Cargo.findAll({
+  where: { id: cargoIds },
+  attributes: ['id', 'nome']
+});
+
+// Buscar dados acadêmicos
+const dadosAcademicos = await DadosAcademicos.findOne({
+  where: { MembroId: membroId },
+  attributes: ['habilitacoes', 'especialidades', 'estudo_teologico', 'local_formacao']
+});
+
+// Buscar dados cristãos
+const dadosCristaos = await DadosCristaos.findOne({
+  where: { MembroId: membroId },
+  attributes: ['consagrado', 'data_consagracao', 'categoria_ministerial']
+});
+
+// Buscar dados diversos
+const diversos = await Diversos.findOne({
+  where: { MembroId: membroId },
+  attributes: ['trabalha', 'conta_outrem', 'conta_propria']
+});
+
+// Montar a resposta completa
+const membroCompleto = {
+  ...membro.dataValues,
+  foto: membro.foto ? `${req.protocol}://${req.get('host')}${membro.foto}` : null,
+  departamentos,
+  cargos,
+  dadosAcademicos: dadosAcademicos ? dadosAcademicos.dataValues : null,
+  dadosCristaos: dadosCristaos ? dadosCristaos.dataValues : null,
+  diversos: diversos ? diversos.dataValues : null
+};
+
+return res.status(200).json(membroCompleto);
+
+
+} catch (error) {
+console.error('Erro ao buscar membro:', error);
+return res.status(500).json({ message: 'Erro interno do servidor.' });
+}
+});
+
+
+
+
+
+
+// Rota para listar membros pastores filtrados pelo contexto do usuário (Sede/Filhal)
+router.get('/membros/pastores', auth, async (req, res) => {
   try {
-    const membroId = req.params.id;
+    const { SedeId, FilhalId } = req.usuario;
 
-    // Buscar o membro com apenas os campos que existem na tabela
-    const membro = await Membros.findOne({
-      where: { id: membroId },
-      attributes: [
-        'id',
-        'nome',
-        'foto',
-        'genero',
-        'data_nascimento',
-        'estado_civil',
-        'telefone',
-        'email',
-        'endereco_cidade',
-        'profissao',
-        'batizado',
-        'ativo'
-      ],
-    });
-
-    if (!membro) {
-      return res.status(404).json({ message: 'Membro não encontrado.' });
+    // Define filtro pelo contexto do usuário
+    let filtroMembro = {};
+    if (FilhalId) {
+      filtroMembro.FilhalId = FilhalId;
+    } else if (SedeId) {
+      filtroMembro.SedeId = SedeId;
     }
 
-    // Buscar departamentos do membro
-    const deptosIds = await DepartamentoMembros.findAll({
-      where: { MembroId: membroId },
-      attributes: ['DepartamentoId']
-    });
-    const departamentoIds = deptosIds.map(d => d.DepartamentoId);
-    const departamentos = await Departamentos.findAll({
-      where: { id: departamentoIds },
-      attributes: ['id', 'nome']
-    });
-
-    // Buscar cargos do membro
-    const cargosIds = await CargoMembro.findAll({
-      where: { MembroId: membroId },
-      attributes: ['CargoId']
-    });
-    const cargoIds = cargosIds.map(c => c.CargoId);
-    const cargos = await Cargo.findAll({
-      where: { id: cargoIds },
-      attributes: ['id', 'nome']
+    // Busca membros que são pastores
+    const pastores = await Membros.findAll({
+      where: filtroMembro,
+      include: [{
+        model: DadosCristaos,
+        attributes: ['categoria_ministerial'],
+        required: true, // garante que só traga membros que têm DadosCristaos
+        where: { categoria_ministerial: 'Pastor' }
+      }],
+      attributes: ['id', 'nome', 'foto', 'telefone', 'email'],
+      order: [['nome', 'ASC']]
     });
 
-    // Buscar dados acadêmicos
-    const dadosAcademicos = await DadosAcademicos.findOne({
-      where: { MembroId: membroId },
-      attributes: ['habilitacoes', 'especialidades', 'estudo_teologico', 'local_formacao']
-    });
-
-    // Buscar dados cristãos
-    const dadosCristaos = await DadosCristaos.findOne({
-      where: { MembroId: membroId },
-      attributes: ['consagrado', 'data_consagracao', 'categoria_ministerial']
-    });
-
-    // Buscar dados diversos
-    const diversos = await Diversos.findOne({
-      where: { MembroId: membroId },
-      attributes: ['trabalha', 'conta_outrem', 'conta_propria']
-    });
-
-    // Montar a resposta
-    const membroCompleto = {
-      ...membro.dataValues,
-      foto: membro.foto ? `${req.protocol}://${req.get('host')}${membro.foto}` : null,
-      departamentos,
-      cargos,
-      dadosAcademicos: dadosAcademicos ? dadosAcademicos.dataValues : null,
-      dadosCristaos: dadosCristaos ? dadosCristaos.dataValues : null,
-      diversos: diversos ? diversos.dataValues : null
-    };
-
-    return res.status(200).json(membroCompleto);
-
+    return res.status(200).json({ pastores });
   } catch (error) {
-    console.error('Erro ao buscar membro:', error);
-    return res.status(500).json({ message: 'Erro interno do servidor.' });
+    console.error('Erro ao listar pastores:', error);
+    return res.status(500).json({ message: 'Erro interno ao buscar pastores.' });
   }
 });
+
+
+
+
+// 📘 Rota para listar agendamentos pastorais (com contexto de Sede ou Filhal)
+router.get('/tabela-comprimisso', auth, async (req, res) => {
+  try {
+    const { SedeId, FilhalId } = req.usuario;
+
+    console.log("AQUI NÃO TEM PROBLEMA no token:", req.usuario);
+
+    // 🔍 Filtro de contexto
+    let filtro = {};
+    if (FilhalId) {
+      filtro.FilhalId = FilhalId;
+    } else if (SedeId) {
+      filtro.SedeId = SedeId;
+    }
+
+    // 🧾 Busca dos registros
+    const agendamentos = await AgendaPastoral.findAll({
+      where: filtro,
+      include: [
+        {
+          model: Membros,
+          attributes: ['id', 'nome', 'telefone', 'email'],
+        },
+      ],
+      order: [['data_hora', 'DESC']],
+    });
+
+    return res.status(200).json({ agendamentos });
+  } catch (error) {
+    console.error('❌ Erro ao listar agenda pastoral:', error);
+    return res.status(500).json({ message: 'Erro interno ao listar agenda pastoral.' });
+  }
+});
+
+
+
+
+
+
+
+// 📘 Rota para listar cultos (com contexto de Sede ou Filhal)
+router.get("/tabela-cultos", auth, async (req, res) => {
+  try {
+    const { SedeId, FilhalId } = req.usuario;
+
+    console.log("🔹 Token verificado:", req.usuario);
+
+    // 🔍 Filtro de contexto
+    let filtro = {};
+    if (FilhalId) {
+      filtro.FilhalId = FilhalId;
+    } else if (SedeId) {
+      filtro.SedeId = SedeId;
+    }
+
+    // ✅ Filtra apenas cultos que tenham responsável
+    filtro.responsavel = { [Op.ne]: null };
+
+    // 🧾 Busca dos registros
+    const cultos = await Cultos.findAll({
+      where: filtro,
+      include: [
+        {
+          model: TipoCulto,
+          attributes: ["id", "nome"], // Ex: tipo do culto (oração, louvor, etc)
+        },
+      ],
+      order: [["dataHora", "DESC"]],
+    });
+
+    return res.status(200).json({ cultos });
+  } catch (error) {
+    console.error("❌ Erro ao listar cultos:", error);
+    return res
+      .status(500)
+      .json({ message: "Erro interno ao listar cultos." });
+  }
+});
+
+
+
+
+
+
+
+
+
+
+// 📘 Rota para listar cultos (com contexto de Sede ou Filhal)
+router.get('/tabela-cultos', auth, async (req, res) => {
+  try {
+    const { SedeId, FilhalId } = req.usuario;
+
+    console.log("Token válido:", req.usuario);
+
+    // 🔍 Filtro de contexto
+    let filtro = {};
+    if (FilhalId) {
+      filtro.FilhalId = FilhalId;
+    } else if (SedeId) {
+      filtro.SedeId = SedeId;
+    }
+
+    // 🧾 Busca dos cultos
+    const cultos = await Cultos.findAll({
+      where: filtro,
+      include: [
+        {
+          model: TipoCulto,
+          attributes: ['id', 'nome', 'descricao'],
+        },
+      ],
+      order: [['dataHora', 'DESC']],
+    });
+
+    return res.status(200).json({ cultos });
+  } catch (error) {
+    console.error('❌ Erro ao listar cultos:', error);
+    return res.status(500).json({ message: 'Erro interno ao listar cultos.' });
+  }
+});
+
+
+
+
+// GET /tabela-cultos → lista os tipos de cultos
+router.get('/tabela-cultos1', auth, async (req, res) => {
+  try {
+    const { SedeId, FilhalId } = req.usuario;
+
+    // Filtro hierárquico: Filhal > Sede
+    let filtro = { ativo: true };
+    if (FilhalId) {
+      filtro.FilhalId = FilhalId;
+    } else if (SedeId) {
+      filtro.SedeId = SedeId;
+    }
+
+    // Busca os tipos de cultos, não os cultos em si
+    const tiposCultos = await TipoCulto.findAll({
+      where: filtro, // Aqui você pode filtrar pelos parâmetros SedeId e FilhalId
+      attributes: ['id', 'nome', 'descricao'], // Trazendo os dados dos tipos de culto
+      order: [['nome', 'ASC']], // Ordenar por nome
+    });
+
+    // Retorna os tipos de culto encontrados
+    res.status(200).json(tiposCultos);
+  } catch (error) {
+    console.error('Erro ao listar tipos de cultos:', error);
+    res.status(500).json({ message: 'Erro ao listar tipos de cultos' });
+  }
+});
+
+
+
+
+// DELETE /tipocultos/:id → Deleta um tipo de culto pelo ID
+router.delete('/tipocultos/:id', auth, async (req, res) => {
+  try {
+    const { id } = req.params;  // Obtém o ID do tipo de culto a ser deletado
+
+    // Tenta excluir o tipo de culto com o ID fornecido
+    const tipoCulto = await TipoCulto.destroy({
+      where: { id },  // Deleta o tipo de culto com o ID fornecido
+    });
+
+    if (tipoCulto === 0) {
+      return res.status(404).json({ message: 'Tipo de culto não encontrado' });
+    }
+
+    return res.status(200).json({ message: 'Tipo de culto deletado com sucesso!' });
+  } catch (error) {
+    console.error('Erro ao deletar tipo de culto:', error);
+    return res.status(500).json({ message: 'Erro ao deletar tipo de culto' });
+  }
+});
+
+
+
+// 📘 Rota para atualizar o status de um culto
+router.put('/cultos/:id/status', auth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body; // esperado: programado, realizado, cancelado
+
+    // ✅ Verifica se o status é válido
+    const statusValidos = ['programado', 'realizado', 'cancelado'];
+    if (!statusValidos.includes(status)) {
+      return res.status(400).json({ message: 'Status inválido. Use: programado, realizado ou cancelado.' });
+    }
+
+    // 🔍 Busca o culto pelo ID
+    const culto = await Cultos.findByPk(id);
+    if (!culto) {
+      return res.status(404).json({ message: 'Culto não encontrado.' });
+    }
+
+    // ✏️ Atualiza o status
+    culto.status = status;
+    await culto.save();
+
+    return res.status(200).json({ message: 'Status do culto atualizado com sucesso!', culto });
+  } catch (error) {
+    console.error('❌ Erro ao atualizar status do culto:', error);
+    return res.status(500).json({ message: 'Erro interno ao atualizar status do culto.' });
+  }
+});
+
+
+
+
+
+// ✅ Rota para atualizar o status de um agendamento pastoral
+router.put('/agenda-pastoral/:id/status', auth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    if (!['Pendente', 'Concluido', 'Cancelado'].includes(status)) {
+      return res.status(400).json({ message: 'Status inválido.' });
+    }
+
+    const agendamento = await AgendaPastoral.findByPk(id);
+    if (!agendamento) {
+      return res.status(404).json({ message: 'Agendamento não encontrado.' });
+    }
+
+    agendamento.status = status;
+    await agendamento.save();
+
+    return res.status(200).json({
+      message: 'Status atualizado com sucesso!',
+      agendamento,
+    });
+  } catch (error) {
+    console.error('Erro ao atualizar status:', error);
+    return res.status(500).json({ message: 'Erro interno ao atualizar status.' });
+  }
+});
+
+
+
+// 📘 Rota para criar um novo agendamento pastoral
+router.post('/agenda-pastoral', auth, async (req, res) => {
+  try {
+    const {
+      MembroId,
+      data_hora,
+      tipo_cumprimento,
+      nome_pessoa,
+      responsavel,
+      status,
+      observacao
+    } = req.body;
+
+    // ✅ Validação dos campos obrigatórios
+    if (!MembroId || !data_hora || !tipo_cumprimento || !nome_pessoa) {
+      return res.status(400).json({ message: 'Preencha todos os campos obrigatórios.' });
+    }
+
+    // 🔐 Contexto do usuário logado
+    const { id: UsuarioId, SedeId, FilhalId } = req.usuario;
+
+    // 🧾 Criação do registro na tabela
+    const agenda = await AgendaPastoral.create({
+      MembroId,
+      UsuarioId,
+      data_hora: new Date(data_hora),
+      tipo_cumprimento,
+      nome_pessoa,
+      responsavel,
+      status: status || 'Pendente',
+      observacao: observacao || '',
+      SedeId: SedeId || null,
+      FilhalId: FilhalId || null,
+    });
+
+    return res.status(201).json({
+      message: 'Agendamento pastoral criado com sucesso!',
+      agenda,
+    });
+  } catch (error) {
+    console.error('❌ Erro ao criar agendamento pastoral:', error);
+    return res.status(500).json({ message: 'Erro interno ao criar agendamento pastoral.' });
+  }
+});
+
+
+
+
+// Criar atendimento
+router.post('/atendimentos', auth, async (req, res) => {
+  try {
+    const { MembroId, data_hora, observacoes } = req.body;
+
+    if (!MembroId || !data_hora) {
+      return res.status(400).json({ message: 'Pastor e data/hora são obrigatórios.' });
+    }
+
+    // Criando o atendimento
+    const atendimento = await Atendimento.create({
+      MembroId: MembroId,          // pastor
+      UsuarioId: req.usuario.id,   // usuário logado
+      SedeId: req.usuario.SedeId || null,
+      FilhalId: req.usuario.FilhalId || null,
+      data_hora: new Date(data_hora),
+      status: 'Agendado',
+      observacoes: observacoes || ''
+    });
+
+    return res.status(201).json({ message: 'Atendimento agendado com sucesso!', atendimento });
+  } catch (error) {
+    console.error('Erro ao criar atendimento:', error);
+    return res.status(500).json({ message: 'Erro interno ao agendar atendimento.' });
+  }
+});
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// Atualizar status do atendimento
+router.put('/atendimentos/:id/status', auth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    if (!['Agendado', 'Concluido', 'Cancelado'].includes(status)) {
+      return res.status(400).json({ message: 'Status inválido.' });
+    }
+
+    const atendimento = await Atendimento.findByPk(id);
+    if (!atendimento) {
+      return res.status(404).json({ message: 'Atendimento não encontrado.' });
+    }
+
+    atendimento.status = status;
+    await atendimento.save();
+
+    return res.status(200).json({ message: 'Status atualizado com sucesso!', atendimento });
+  } catch (error) {
+    console.error('Erro ao atualizar status:', error);
+    return res.status(500).json({ message: 'Erro interno ao atualizar status.' });
+  }
+});
+
+
+
+
+
+
+
+
+
+
+// Listar atendimentos do contexto do usuário (Sede ou Filhal)
+router.get('/tabela-atendimentos', auth, async (req, res) => {
+  try {
+    const { SedeId, FilhalId } = req.usuario;
+
+    // Filtro pelo contexto
+    let filtro = {};
+    if (FilhalId) {
+      filtro.FilhalId = FilhalId;
+    } else if (SedeId) {
+      filtro.SedeId = SedeId;
+    }
+
+    // Buscar atendimentos
+    const atendimentos = await Atendimento.findAll({
+      where: filtro,
+      include: [
+        {
+          model: Membros,
+          attributes: ['id', 'nome', 'telefone', 'email']
+        },
+        {
+          model: Usuarios,
+          attributes: ['id', 'nome', 'funcao']
+        }
+      ],
+      order: [['data_hora', 'DESC']]
+    });
+
+    return res.status(200).json({ atendimentos });
+  } catch (error) {
+    console.error('Erro ao listar atendimentos:', error);
+    return res.status(500).json({ message: 'Erro interno ao listar atendimentos.' });
+  }
+});
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -458,6 +999,84 @@ router.get('/membros', auth, async (req, res) => {
 });
 
 
+
+// Rota para buscar todas as crianças de 0 a 6 anos (com opção de filtrar consagradas/não consagradas)
+router.get('/membros/criancas', auth, async (req, res) => {
+  try {
+    const { SedeId, FilhalId } = req.usuario;
+    const { consagrado } = req.query; // 👈 filtro opcional (true / false)
+
+    // 📆 Faixa etária: 0 a 6 anos
+    const hoje = new Date();
+    const dataMax = new Date(hoje);
+    const dataMin = new Date(hoje);
+    dataMin.setFullYear(dataMin.getFullYear() - 6);
+
+    // 🔍 Filtro hierárquico + idade
+    const filtro = {
+      data_nascimento: { [Op.between]: [dataMin, dataMax] },
+    };
+
+    if (FilhalId) filtro.FilhalId = FilhalId;
+    else if (SedeId) filtro.SedeId = SedeId;
+
+    // ⚙️ Montar include de DadosCristaos
+    let include = [
+      {
+        model: DadosCristaos,
+        attributes: ['consagrado'],
+        required: false, // inclui mesmo que não tenha registro
+      },
+    ];
+
+    // 🧠 Aplicar filtro de consagração se houver query
+    if (consagrado === "true" || consagrado === "false") {
+      include = [
+        {
+          model: DadosCristaos,
+          attributes: ['consagrado'],
+          required: true, // precisa existir registro
+          where: {
+            consagrado: consagrado === "true" ? 1 : 0,
+          },
+        },
+      ];
+    }
+
+    console.log("🔍 Filtro:", { consagrado });
+    console.log("🏢 Filtro hierárquico:", { SedeId, FilhalId });
+    console.log("📅 Faixa etária:", filtro.data_nascimento);
+
+    // 🔎 Buscar membros que são crianças
+    const criancas = await Membros.findAll({
+      where: filtro,
+      attributes: [
+        'id',
+        'nome',
+        'data_nascimento',
+        'genero',
+        'foto'
+      ],
+      include,
+      order: [['data_nascimento', 'DESC']],
+    });
+
+    // 🔧 Ajustar resposta final
+    const resultado = criancas.map((c) => ({
+      id: c.id,
+      nome: c.nome,
+      genero: c.genero,
+      data_nascimento: c.data_nascimento,
+      foto: c.foto ? `${req.protocol}://${req.get('host')}${c.foto}` : null,
+      consagrado: c.DadosCristao ? !!c.DadosCristao.consagrado : false,
+    }));
+
+    return res.status(200).json(resultado);
+  } catch (error) {
+    console.error('❌ Erro ao buscar crianças:', error);
+    return res.status(500).json({ message: 'Erro ao buscar crianças.' });
+  }
+});
 
 
 // Rota básica: busca todos os membros (sem filtro de Sede/Filial e sem detalhes extras)
@@ -555,15 +1174,343 @@ router.get('/cargos', auth, async (req, res) => {
   }
 });
 
+
+
+
+// GET /salarios - listar salários por intervalo e opcionalmente por funcionário
+router.get("/salarios", auth, async (req, res) => {
+  try {
+    const { startDate, endDate, FuncionarioId } = req.query; // adicionado FuncionarioId
+    const { SedeId, FilhalId } = req.usuario;
+
+    let where = {};
+
+    // Filtrar por intervalo de datas (mes_ano é "YYYY-MM")
+    if (startDate && endDate) {
+      where.mes_ano = {
+        [Op.between]: [
+          dayjs(startDate).format("YYYY-MM"),
+          dayjs(endDate).format("YYYY-MM"),
+        ],
+      };
+    }
+
+    // Filtro hierárquico
+    if (SedeId) {
+      where.SedeId = SedeId;
+    } else if (FilhalId) {
+      where.FilhalId = FilhalId;
+    }
+
+    // Filtro por funcionário, se fornecido
+    if (FuncionarioId) {
+      where.FuncionarioId = FuncionarioId;
+    }
+
+    const salarios = await Salarios.findAll({
+      where,
+      include: [
+        {
+          model: Funcionarios,
+          include: [
+            { model: Membros, attributes: ["id", "nome"] }, // incluir id para referência
+          ],
+        },
+      ],
+      order: [["mes_ano", "DESC"]],
+    });
+
+    res.json({ salarios });
+  } catch (error) {
+    console.error("Erro ao buscar salários:", error);
+    res.status(500).json({ error: "Erro interno ao buscar salários." });
+  }
+});
+
+
+
+
+
+
+
+
+
+
+
+// 🔹 Listar funcionários ativos com o nome do membro (filtrando por Sede/Filhal)
+router.get("/funcionarios", auth, async (req, res) => {
+  try {
+    const { SedeId, FilhalId } = req.usuario;
+
+    let where = { ativo: true };
+
+    // Filtro hierárquico
+    if (SedeId && !FilhalId) {
+      where.SedeId = SedeId;
+    } else if (SedeId && FilhalId) {
+      where.FilhalId = FilhalId;
+    }
+
+    const funcionarios = await Funcionarios.findAll({
+      where,
+      include: [
+        {
+          model: Membros,
+          attributes: ["id", "nome"], // pega só o necessário
+        },
+      ],
+      order: [["id", "ASC"]],
+    });
+
+    res.json(funcionarios);
+  } catch (err) {
+    console.error("Erro ao listar funcionários ativos:", err);
+    res.status(500).json({ message: "Erro ao listar funcionários ativos" });
+  }
+});
+  
+
+
+
+// 🔹 Listar subsídios ativos (filtrando por Sede/Filhal)
+router.get("/subsidios", auth, async (req, res) => {
+  try {
+    const { SedeId, FilhalId } = req.usuario;
+
+    let where = { ativo: true };
+
+    // Filtro hierárquico
+    if (SedeId && !FilhalId) {
+      where.SedeId = SedeId;
+    } else if (SedeId && FilhalId) {
+      where.FilhalId = FilhalId;
+    }
+
+    const subsidios = await Subsidios.findAll({
+      where,
+      order: [["id", "ASC"]],
+    });
+
+    res.json(subsidios);
+  } catch (error) {
+    console.error("Erro ao listar subsídios:", error);
+    res.status(500).json({ message: "Erro interno ao listar subsídios." });
+  }
+});
+
+
+// 🔹 Listar descontos ativos (filtrando por Sede/Filhal)
+router.get("/descontos", auth, async (req, res) => {
+  try {
+    const { SedeId, FilhalId } = req.usuario;
+
+    let where = { ativo: true };
+
+    // Filtro hierárquico
+    if (SedeId && !FilhalId) {
+      where.SedeId = SedeId;
+    } else if (SedeId && FilhalId) {
+      where.FilhalId = FilhalId;
+    }
+
+    const descontos = await Descontos.findAll({
+      where,
+      order: [["id", "ASC"]],
+    });
+
+    res.json(descontos);
+  } catch (error) {
+    console.error("Erro ao listar descontos:", error);
+    res.status(500).json({ message: "Erro interno ao listar descontos." });
+  }
+});
+
+
+router.post("/salarios", auth, async (req, res) => {
+  try {
+    const { FuncionarioId, mes_ano, subsidiosAplicados = [], descontosAplicados = [] } = req.body;
+
+    // 🔹 Buscar o funcionário
+    const funcionario = await Funcionarios.findByPk(FuncionarioId);
+    if (!funcionario) {
+      return res.status(404).json({ message: "Funcionário não encontrado." });
+    }
+
+    const salario_base = parseFloat(funcionario.salario_base);
+
+    // 🔹 Somar subsídios
+    const total_subsidios = subsidiosAplicados.reduce(
+      (acc, s) => acc + parseFloat(s.valor || 0),
+      0
+    );
+
+    // 🔹 Somar descontos
+    const total_descontos = descontosAplicados.reduce(
+      (acc, d) => acc + parseFloat(d.valor || 0),
+      0
+    );
+
+    // 🔹 Calcular salário líquido
+    const salario_liquido = salario_base + total_subsidios - total_descontos;
+
+    const { SedeId, FilhalId } = req.usuario;
+
+    const salario = await Salarios.create({
+      mes_ano,
+      salario_base,
+      total_subsidios,
+      salario_liquido,
+      FuncionarioId,
+      SedeId: SedeId || null,
+      FilhalId: FilhalId || null,
+    });
+
+    res.status(201).json({
+      message: "✅ Salário gerado com sucesso!",
+      salario,
+    });
+  } catch (error) {
+    console.error("Erro ao gerar salário:", error);
+    res.status(500).json({ message: "❌ Erro interno ao gerar salário." });
+  }
+});
+
  
 
 
+router.post("/subsidios", auth, async (req, res) => {
+try {
+const { nome, valor, ativo } = req.body;
+
+
+console.log(req.body); // 🔹 Para depuração
+
+// 🔹 Validação
+if (!nome || !valor) {
+  return res.status(400).json({
+    message: "Preencha todos os campos obrigatórios (Nome e Valor).",
+  });
+}
+
+// 🔹 Pegar hierarquia do usuário logado (Sede / Filhal)
+const { SedeId, FilhalId } = req.usuario;
+
+// 🔹 Criar subsídio associado ao contexto
+const novoSubsidio = await Subsidios.create({
+  nome,
+  valor,
+  ativo: ativo !== undefined ? ativo : true,
+  SedeId: SedeId || null,
+  FilhalId: FilhalId || null,
+});
+
+return res.status(201).json({
+  message: "✅ Subsídio cadastrado com sucesso!",
+  subsidio: novoSubsidio,
+});
+
+
+} catch (error) {
+console.error("Erro ao cadastrar subsídio:", error);
+return res.status(500).json({
+message: "❌ Erro interno ao cadastrar subsídio.",
+});
+}
+});
 
 
 
 
 
+// 🔹 Rota para cadastrar novo funcionário
+router.post("/funcionarios", auth, async (req, res) => {
+  try {
+    const { salario_base, ativo, MembroId, CargoId } = req.body;
 
+    // 🔹 Validação
+    if (!MembroId || !CargoId || !salario_base) {
+      return res.status(400).json({
+        message: "Preencha todos os campos obrigatórios (Membro, Cargo e Salário Base).",
+      });
+    }
+
+    // 🔹 Verificar se o Membro existe
+    const membro = await Membros.findByPk(MembroId);
+    if (!membro) {
+      return res.status(404).json({ message: "Membro não encontrado." });
+    }
+
+    // 🔹 Verificar se o Cargo existe
+    const cargo = await Cargo.findByPk(CargoId);
+    if (!cargo) {
+      return res.status(404).json({ message: "Cargo não encontrado." });
+    }
+
+    // 🔹 Pegar hierarquia do usuário logado (Sede / Filhal)
+    const { SedeId, FilhalId } = req.usuario;
+
+    // 🔹 Criar funcionário associado ao contexto
+    const novoFuncionario = await Funcionarios.create({
+      salario_base,
+      ativo,
+      MembroId,
+      CargoId,
+      SedeId: SedeId || null,
+      FilhalId: FilhalId || null,
+    });
+
+    return res.status(201).json({
+      message: "✅ Funcionário cadastrado com sucesso!",
+      funcionario: novoFuncionario,
+    });
+  } catch (error) {
+    console.error("Erro ao cadastrar funcionário:", error);
+    return res.status(500).json({
+      message: "❌ Erro interno ao cadastrar funcionário.",
+    });
+  }
+});
+
+
+
+
+
+// 🔹 Rota para cadastrar novo desconto
+router.post("/descontos", auth, async (req, res) => {
+  try {
+    const { nome, valor, descricao, ativo } = req.body;
+
+    // 🔹 Validação
+    if (!nome || valor === undefined) {
+      return res.status(400).json({
+        message: "Preencha todos os campos obrigatórios (Nome e Valor).",
+      });
+    }
+
+    // 🔹 Pegar hierarquia do usuário logado (Sede / Filhal)
+    const { SedeId, FilhalId } = req.usuario;
+
+    // 🔹 Criar desconto associado ao contexto
+    const novoDesconto = await Descontos.create({
+      nome,
+      valor,
+      descricao: descricao || null,
+      ativo: ativo !== undefined ? ativo : true,
+      SedeId: SedeId || null,
+      FilhalId: FilhalId || null,
+    });
+
+    return res.status(201).json({
+      message: "✅ Desconto cadastrado com sucesso!",
+      desconto: novoDesconto,
+    });
+  } catch (error) {
+    console.error("Erro ao cadastrar desconto:", error);
+    return res.status(500).json({
+      message: "❌ Erro interno ao cadastrar desconto.",
+    });
+  }
+});
 
 
 
@@ -775,6 +1722,19 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
 // Rota para atualizar membro com foto, departamentos e tabelas relacionadas
 router.put('/membros/:id', auth, upload.single('foto'), async (req, res) => {
   try {
@@ -786,7 +1746,10 @@ router.put('/membros/:id', auth, upload.single('foto'), async (req, res) => {
       DepartamentosIds,
       habilitacoes, especialidades, estudo_teologico, local_formacao,
       consagrado, data_consagracao, categoria_ministerial,
-      trabalha, conta_outrem, conta_propria
+      trabalha, conta_outrem, conta_propria,
+
+      // Novo: Usuário vinculado
+      MembroIdUsuario
     } = req.body;
 
     const membro = await Membros.findByPk(membroId);
@@ -818,9 +1781,7 @@ router.put('/membros/:id', auth, upload.single('foto'), async (req, res) => {
       batizado: batizado !== undefined ? (batizado === true || batizado === 'true') : membro.batizado,
     };
 
-    // Atualiza email somente se for válido (não vazio)
     if (email !== undefined && email.trim() !== '') dadosAtualizar.email = email;
-
     if (endereco_rua !== undefined) dadosAtualizar.endereco_rua = endereco_rua;
     if (endereco_bairro !== undefined) dadosAtualizar.endereco_bairro = endereco_bairro;
     if (endereco_cidade !== undefined) dadosAtualizar.endereco_cidade = endereco_cidade;
@@ -830,6 +1791,14 @@ router.put('/membros/:id', auth, upload.single('foto'), async (req, res) => {
     if (data_batismo !== undefined) dadosAtualizar.data_batismo = parseDate(data_batismo);
 
     await membro.update(dadosAtualizar);
+
+    // Atualiza o MembroId do usuário vinculado (se enviado)
+    if (MembroIdUsuario) {
+      await Usuarios.update(
+        { MembroId: membro.id },
+        { where: { id: MembroIdUsuario } }
+      );
+    }
 
     // Atualiza cargos
     if (CargosIds) {
@@ -922,6 +1891,53 @@ router.put('/membros/:id', auth, upload.single('foto'), async (req, res) => {
 
 
 
+// 🔹 Rota: Listar aniversariantes por mês
+router.get("/aniversarios/mes/:mes", auth, async (req, res) => {
+  try {
+    const { mes } = req.params;
+    const { SedeId, FilhalId } = req.usuario;
+
+    // 🧭 Validação simples do mês
+    const numeroMes = parseInt(mes, 10);
+    if (isNaN(numeroMes) || numeroMes < 1 || numeroMes > 12) {
+      return res.status(400).json({ message: "Mês inválido. Use 1 a 12." });
+    }
+
+    // 🔎 Filtro de contexto hierárquico
+    let filtro = { ativo: true };
+    if (FilhalId) filtro.FilhalId = FilhalId;
+    else if (SedeId) filtro.SedeId = SedeId;
+
+    // 🔹 Busca os membros ativos
+    const membros = await Membros.findAll({
+      where: filtro,
+      attributes: ["id", "nome", "foto", "data_nascimento"],
+      order: [["nome", "ASC"]],
+    });
+
+    // 🔹 Filtra somente os que fazem aniversário no mês escolhido
+    const aniversariantesDoMes = membros.filter((membro) => {
+      if (!membro.data_nascimento) return false;
+      const data = new Date(membro.data_nascimento);
+      return data.getMonth() + 1 === numeroMes;
+    });
+
+    // 🔹 Adiciona a URL completa da foto
+    const membrosComFoto = aniversariantesDoMes.map((m) => ({
+      ...m.dataValues,
+      foto: m.foto ? `${req.protocol}://${req.get("host")}${m.foto}` : null,
+    }));
+
+    return res.status(200).json({
+      mes: numeroMes,
+      total: membrosComFoto.length,
+      aniversariantes: membrosComFoto,
+    });
+  } catch (error) {
+    console.error("❌ Erro ao buscar aniversariantes do mês:", error);
+    res.status(500).json({ message: "Erro interno ao buscar aniversariantes." });
+  }
+});
 
 
 
@@ -1000,8 +2016,6 @@ router.get('/completos-membros/:id', auth, async (req, res) => {
 
 
 
-
-
 // Rota para cadastrar membros com foto, departamentos e tabelas relacionadas
 router.post('/membros', auth, upload.single('foto'), async (req, res) => {
   try {
@@ -1018,7 +2032,10 @@ router.post('/membros', auth, upload.single('foto'), async (req, res) => {
       consagrado, data_consagracao, categoria_ministerial,
 
       // Diversos
-      trabalha, conta_outrem, conta_propria
+      trabalha, conta_outrem, conta_propria,
+
+      // Novo: Usuário vinculado
+      MembroIdUsuario // Esse é o id do usuário selecionado no dropdown
     } = req.body;
 
     // === Conversão segura de IDs para números e filtragem de NaN ===
@@ -1067,6 +2084,14 @@ router.post('/membros', auth, upload.single('foto'), async (req, res) => {
     });
 
     const novoMembro = await Membros.create(dados);
+
+    // Atualiza o MembroId do usuário vinculado (se enviado)
+    if (MembroIdUsuario) {
+      await Usuarios.update(
+        { MembroId: novoMembro.id },
+        { where: { id: MembroIdUsuario } }
+      );
+    }
 
     // Cadastro dos cargos
     if (cargosArray.length > 0) {
@@ -1122,11 +2147,6 @@ router.post('/membros', auth, upload.single('foto'), async (req, res) => {
     return res.status(500).json({ message: 'Erro interno no servidor.' });
   }
 });
-
-
-
-
-
 
 
 
@@ -1754,6 +2774,115 @@ router.get('/lista/tipos-culto', auth, async (req, res) => {
 
 
 
+
+
+
+
+
+
+// ✅ Rota para criar um novo culto
+router.post('/programa-cultos', auth, async (req, res) => {
+  try {
+    const { TipoCultoId, dataHora, local, responsavel, observacoes } = req.body;
+    const { SedeId, FilhalId } = req.usuario;
+
+    if (!TipoCultoId || !dataHora) {
+      return res.status(400).json({ message: 'Campos obrigatórios ausentes.' });
+    }
+
+    const novoCulto = await Cultos.create({
+      TipoCultoId,
+      dataHora,
+      local,
+      responsavel,
+      observacoes,
+      status: 'programado',
+      ativo: 1,
+      SedeId: SedeId || null,
+      FilhalId: FilhalId || null,
+    });
+
+    return res.status(201).json({
+      message: 'Culto criado com sucesso!',
+      culto: novoCulto,
+    });
+  } catch (error) {
+    console.error('Erro ao criar culto:', error);
+    return res.status(500).json({ message: 'Erro interno ao criar culto.' });
+  }
+});
+
+
+
+
+
+// GET /cultos/resumo-mensal → resumo de cultos por mês
+router.get('/cultos/resumo-mensal', auth, async (req, res) => {
+  try {
+    const { SedeId, FilhalId } = req.usuario;
+
+    // Filtro hierárquico
+    let filtro = { ativo: true };
+    if (FilhalId) {
+      filtro.FilhalId = FilhalId;
+    } else if (SedeId) {
+      filtro.SedeId = SedeId;
+    }
+
+    // Busca cultos
+    const cultos = await Cultos.findAll({
+      where: filtro,
+      attributes: ['id', 'dataHora', 'status'],
+      order: [['dataHora', 'ASC']],
+    });
+
+    // Agrupa por mês
+    const resumoPorMes = {};
+
+    cultos.forEach((c) => {
+      const data = new Date(c.dataHora);
+      const mes = data.toLocaleString('pt-BR', { month: 'long' }); // exemplo: "janeiro"
+      const ano = data.getFullYear();
+      const chave = `${mes.charAt(0).toUpperCase() + mes.slice(1)} ${ano}`; // "Janeiro 2025"
+
+      if (!resumoPorMes[chave]) {
+        resumoPorMes[chave] = {
+          mes: chave,
+          total: 0,
+          programados: 0,
+          realizados: 0,
+          cancelados: 0,
+        };
+      }
+
+      resumoPorMes[chave].total++;
+
+      if (c.status === 'programado') resumoPorMes[chave].programados++;
+      if (c.status === 'realizado') resumoPorMes[chave].realizados++;
+      if (c.status === 'cancelado') resumoPorMes[chave].cancelados++;
+    });
+
+    // Converte em array e ordena por data
+    const resultado = Object.values(resumoPorMes).sort((a, b) => {
+      const getDate = (mesStr) => {
+        const [mesNome, ano] = mesStr.split(' ');
+        const meses = [
+          'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
+          'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'
+        ];
+        return new Date(ano, meses.indexOf(mesNome.toLowerCase()));
+      };
+      return getDate(a.mes) - getDate(b.mes);
+    });
+
+    res.status(200).json({ resumo: resultado });
+  } catch (error) {
+    console.error('Erro ao gerar resumo mensal:', error);
+    res.status(500).json({ message: 'Erro ao gerar resumo mensal' });
+  }
+});
+
+
 // Rota - Criar novo tipo de culto
 router.post('/tipocultos', auth, async (req, res) => {
   try {
@@ -1781,6 +2910,42 @@ router.post('/tipocultos', auth, async (req, res) => {
   } catch (error) {
     console.error('Erro ao criar tipo de culto:', error);
     res.status(500).json({ message: 'Erro ao criar tipo de culto' });
+  }
+});
+
+
+
+// Rota - Atualizar tipo de culto existente
+router.put('/tipocultos/:id', auth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { nome, descricao, ativo } = req.body;
+    const { SedeId, FilhalId } = req.usuario; // dados do usuário logado
+
+    // Busca o tipo de culto pelo ID
+    const tipoCulto = await TipoCulto.findByPk(id);
+
+    if (!tipoCulto) {
+      return res.status(404).json({ message: 'Tipo de culto não encontrado.' });
+    }
+
+    // Atualiza apenas os campos enviados
+    tipoCulto.nome = nome !== undefined ? nome.trim() : tipoCulto.nome;
+    tipoCulto.descricao = descricao !== undefined ? descricao : tipoCulto.descricao;
+    tipoCulto.ativo = ativo !== undefined ? ativo : tipoCulto.ativo;
+    tipoCulto.SedeId = SedeId || tipoCulto.SedeId;
+    tipoCulto.FilhalId = FilhalId || tipoCulto.FilhalId;
+
+    // Salva as alterações no banco
+    await tipoCulto.save();
+
+    res.status(200).json({
+      message: 'Tipo de culto atualizado com sucesso!',
+      tipoCulto,
+    });
+  } catch (error) {
+    console.error('Erro ao atualizar tipo de culto:', error);
+    res.status(500).json({ message: 'Erro ao atualizar tipo de culto.' });
   }
 });
 
@@ -1899,6 +3064,77 @@ router.post('/detalhes-cultos', auth, async (req, res) => {
 
 
 
+
+
+router.get('/detalhes-cultos1', auth, async (req, res) => {
+  try {
+    const { SedeId, FilhalId } = req.usuario;
+
+    let filtro = {};
+    if (FilhalId) filtro.FilhalId = FilhalId;
+    else if (SedeId) filtro.SedeId = SedeId;
+
+    const cultos = await Cultos.findAll({
+      where: filtro,
+      attributes: [
+        'id',
+        'dataHora',
+        'local',
+        'responsavel',
+        'status',
+        [col('TipoCulto.nome'), 'tipoCulto'],
+        // soma das presenças
+        [fn('COALESCE', fn('SUM', col('Presencas.homens')), 0), 'homens'],
+        [fn('COALESCE', fn('SUM', col('Presencas.mulheres')), 0), 'mulheres'],
+        [fn('COALESCE', fn('SUM', col('Presencas.criancas')), 0), 'criancas'],
+        [fn('COALESCE', fn('SUM', col('Presencas.adultos')), 0), 'adultos'],
+        [fn('COALESCE', fn('SUM', col('Presencas.total')), 0), 'totalPresencas'],
+        // soma das contribuições
+        [fn('COALESCE', fn('SUM', col('Contribuicaos.valor')), 0), 'totalContribuicoes']
+      ],
+      include: [
+        {
+          model: TipoCulto,
+          attributes: [], // já usamos o col() acima
+        },
+        {
+          model: Presencas,
+          attributes: [], // já agregamos
+        },
+        {
+          model: Contribuicao,
+          attributes: [], // já agregamos
+        }
+      ],
+      group: ['Cultos.id', 'TipoCulto.id'],
+      order: [['dataHora', 'DESC']],
+      raw: true, // retorna os dados já “achatados”
+    });
+
+    // monta resposta final
+    const cultosDetalhados = cultos.map(culto => ({
+      id: culto.id,
+      dataHora: culto.dataHora,
+      local: culto.local,
+      responsavel: culto.responsavel,
+      status: culto.status,
+      tipoCulto: culto.tipoCulto || '—',
+      presencas: {
+        homens: parseInt(culto.homens),
+        mulheres: parseInt(culto.mulheres),
+        criancas: parseInt(culto.criancas),
+        adultos: parseInt(culto.adultos),
+        total: parseInt(culto.totalPresencas),
+      },
+      totalContribuicoes: parseFloat(culto.totalContribuicoes),
+    }));
+
+    return res.status(200).json({ cultos: cultosDetalhados });
+  } catch (error) {
+    console.error('❌ Erro ao listar cultos detalhados:', error);
+    return res.status(500).json({ message: 'Erro interno ao listar cultos.' });
+  }
+});
 
 
 
@@ -3449,89 +4685,93 @@ router.delete("/filhal/:id", async (req, res) => {
 
 
 
-
-
-
-
-
-
-
-
-// Rota para buscar todos os membros + filtros únicos (filtrados por Sede/Filhal)
-router.get('/membros-filtros', auth, async (req, res) => {
+// ====================================================
+// ROTA → LISTAR MEMBROS E DROPDOWNS DE FILTROS
+// ====================================================
+router.get("/membros-filtros", auth, async (req, res) => {
   try {
     const { SedeId, FilhalId } = req.usuario;
 
-    // Filtro hierárquico
+    // ==========================
+    // FILTRO HIERÁRQUICO BASE
+    // ==========================
     let filtro = { ativo: 1 };
-    if (FilhalId) {
-      filtro.FilhalId = FilhalId;
-    } else if (SedeId) {
-      filtro.SedeId = SedeId;
-    }
+    if (FilhalId) filtro.FilhalId = FilhalId;
+    else if (SedeId) filtro.SedeId = SedeId;
 
+    // ==========================
+    // BUSCA MEMBROS
+    // ==========================
     const membros = await Membros.findAll({
       where: filtro,
       attributes: [
-        'id',
-        'nome',
-        'foto',
-        'genero',
-        'data_nascimento',
-        'estado_civil',
-        'telefone',
-        'email',
-        'endereco_cidade',
-        'profissao',
-        'batizado',
-        'ativo',
-        'SedeId',
-        'FilhalId'
+        "id",
+        "nome",
+        "foto",
+        "genero",
+        "data_nascimento",
+        "estado_civil",
+        "telefone",
+        "email",
+        "endereco_cidade",
+        "profissao",
+        "batizado",
+        "ativo",
+        "SedeId",
+        "FilhalId",
       ],
-      order: [['id', 'DESC']]
+      order: [["id", "DESC"]],
     });
 
-    const membrosComFotoUrl = membros.map(membro => {
-      // Calcula idade
+    // ==========================
+    // AJUSTE: CALCULA IDADE + FOTO
+    // ==========================
+    const membrosComFotoUrl = membros.map((membro) => {
       let idade = null;
       if (membro.data_nascimento) {
         const hoje = new Date();
         const nascimento = new Date(membro.data_nascimento);
         idade = hoje.getFullYear() - nascimento.getFullYear();
         const m = hoje.getMonth() - nascimento.getMonth();
-        if (m < 0 || (m === 0 && hoje.getDate() < nascimento.getDate())) {
-          idade--;
-        }
+        if (m < 0 || (m === 0 && hoje.getDate() < nascimento.getDate())) idade--;
       }
 
       return {
         ...membro.dataValues,
         idade,
         batizadoStatus: membro.batizado ? "Sim" : "Não",
-        foto: membro.foto ? `${req.protocol}://${req.get('host')}${membro.foto}` : null,
+        foto: membro.foto
+          ? `${req.protocol}://${req.get("host")}${membro.foto}`
+          : null,
       };
     });
 
-    // Função para contar membros por valor
+    // ==========================
+    // FUNÇÃO UTILITÁRIA
+    // ==========================
     const contarPor = (campo) => {
       const contagem = {};
-      membros.forEach(m => {
+      membros.forEach((m) => {
         let valor = m[campo];
         if (campo === "batizado") valor = m.batizado ? "Sim" : "Não";
         if (valor) contagem[valor] = (contagem[valor] || 0) + 1;
       });
-      return Object.entries(contagem).map(([valor, qtd]) => `${valor} (${qtd} membros)`);
+      return Object.entries(contagem).map(
+        ([valor, qtd]) => `${valor} (${qtd} membros)`
+      );
     };
 
-    // Filtros com contagem
+    // ==========================
+    // FILTROS BÁSICOS
+    // ==========================
     const generos = contarPor("genero");
     const estadosCivis = contarPor("estado_civil");
     const profissoes = contarPor("profissao");
 
-    // Faixas etárias predefinidas
-    const idades = ["0-18", "19-30", "31-50", "51+"].map(faixa => {
+    // Faixas etárias
+    const idades = ["0-18", "19-30", "31-50", "51+"].map((faixa) => {
       let qtd = 0;
-      membrosComFotoUrl.forEach(m => {
+      membrosComFotoUrl.forEach((m) => {
         if (m.idade !== null) {
           const idade = m.idade;
           const corresponde =
@@ -3545,12 +4785,91 @@ router.get('/membros-filtros', auth, async (req, res) => {
       return `${faixa} (${qtd} membros)`;
     });
 
-    // Batizado
-    const batizados = ["Sim", "Não"].map(status => {
-      const qtd = membrosComFotoUrl.filter(m => m.batizadoStatus === status).length;
+    // Batizados
+    const batizados = ["Sim", "Não"].map((status) => {
+      const qtd = membrosComFotoUrl.filter(
+        (m) => m.batizadoStatus === status
+      ).length;
       return `${status} (${qtd} membros)`;
     });
 
+    // ==========================
+    // BLOCO → CARGOS
+    // ==========================
+    const whereCargo = {};
+    if (FilhalId) whereCargo.FilhalId = FilhalId;
+    else if (SedeId) whereCargo.SedeId = SedeId;
+
+    const cargos = await Cargo.findAll({
+      where: whereCargo,
+      include: [{ model: CargoMembro, attributes: ["id", "MembroId"] }],
+      attributes: ["id", "nome"],
+    });
+
+    const cargosFormatados = cargos.map((cargo) => {
+      const qtd = cargo.CargoMembros ? cargo.CargoMembros.length : 0;
+      return `${cargo.nome} (${qtd} membros)`;
+    });
+
+    // ==========================
+    // BLOCO → DEPARTAMENTOS
+    // ==========================
+    const whereDepartamento = {};
+    if (FilhalId) whereDepartamento.FilhalId = FilhalId;
+    else if (SedeId) whereDepartamento.SedeId = SedeId;
+
+    const departamentos = await Departamentos.findAll({
+      where: whereDepartamento,
+      include: [
+        { model: DepartamentoMembros, attributes: ["id", "MembroId"] },
+      ],
+      attributes: ["id", "nome"],
+    });
+
+    const departamentosFormatados = departamentos.map((dep) => {
+      const qtd = dep.DepartamentoMembros ? dep.DepartamentoMembros.length : 0;
+      return `${dep.nome} (${qtd} membros)`;
+    });
+
+    // ==========================
+    // BLOCO → CATEGORIAS MINISTERIAIS
+    // ==========================
+    const categoriasMinisteriais = await DadosCristaos.findAll({
+      where: { categoria_ministerial: { [Op.ne]: null } },
+      attributes: ["categoria_ministerial", "MembroId"],
+    });
+
+    const contagemCategorias = {};
+    categoriasMinisteriais.forEach((dado) => {
+      const cat = dado.categoria_ministerial;
+      if (cat) contagemCategorias[cat] = (contagemCategorias[cat] || 0) + 1;
+    });
+
+    const categoriasFormatadas = Object.entries(contagemCategorias).map(
+      ([valor, qtd]) => `${valor} (${qtd} membros)`
+    );
+
+    // ==========================
+    // 🆕 BLOCO → HABILITAÇÕES
+    // ==========================
+    const habilitacoes = await DadosAcademicos.findAll({
+      where: { habilitacoes: { [Op.ne]: null } },
+      attributes: ["habilitacoes", "MembroId"],
+    });
+
+    const contagemHabilitacoes = {};
+    habilitacoes.forEach((dado) => {
+      const hab = dado.habilitacoes;
+      if (hab) contagemHabilitacoes[hab] = (contagemHabilitacoes[hab] || 0) + 1;
+    });
+
+    const habilitacoesFormatadas = Object.entries(contagemHabilitacoes).map(
+      ([valor, qtd]) => `${valor} (${qtd} membros)`
+    );
+
+    // ==========================
+    // RETORNO FINAL
+    // ==========================
     return res.status(200).json({
       membros: membrosComFotoUrl,
       filtros: {
@@ -3558,12 +4877,19 @@ router.get('/membros-filtros', auth, async (req, res) => {
         estadosCivis,
         profissoes,
         idades,
-        batizados
-      }
+        batizados,
+        cargos: cargosFormatados,
+        departamentos: departamentosFormatados,
+        categoriasMinisteriais: categoriasFormatadas,
+        habilitacoes: habilitacoesFormatadas, // ✅ novo dropdown
+      },
     });
   } catch (error) {
-    console.error('Erro ao buscar membros e filtros:', error);
-    return res.status(500).json({ message: 'Erro interno do servidor.' });
+    console.error("Erro ao buscar membros e filtros:", error);
+    return res.status(500).json({
+      message: "Erro interno do servidor.",
+      error: error.message,
+    });
   }
 });
 
@@ -3578,77 +4904,177 @@ router.get('/membros-filtros', auth, async (req, res) => {
 
 
 
-// Rota para gerar relatório de membros com múltiplos filtros (com Sede/Filhal)
-router.post('/membros-relatorio', auth, async (req, res) => {
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// ==========================================================
+// ROTA → GERAR RELATÓRIO DE MEMBROS (com múltiplos filtros)
+// ==========================================================
+router.post("/membros-relatorio", auth, async (req, res) => {
   try {
-    const { 
-      generos = [], 
-      estadosCivis = [], 
-      profissoes = [], 
-      idades = [], 
-      batizados = [] 
+    const {
+      generos = [],
+      estadosCivis = [],
+      profissoes = [],
+      idades = [],
+      batizados = [],
+      cargos = [],
+      departamentos = [],
+      categoriasMinisteriais = [], // ✅ filtro de categorias ministeriais
+      habilitacoes = [], // ✅ novo filtro de habilitações
     } = req.body;
 
     const { SedeId, FilhalId } = req.usuario;
 
-    // Monta filtro básico para Membros
+    // =============================
+    // FILTRO BASE (HIERARQUIA)
+    // =============================
     let where = { ativo: 1 };
+    if (FilhalId) where.FilhalId = FilhalId;
+    else if (SedeId) where.SedeId = SedeId;
+
+    // =============================
+    // FILTROS BÁSICOS
+    // =============================
     if (generos.length > 0) where.genero = generos;
     if (estadosCivis.length > 0) where.estado_civil = estadosCivis;
     if (profissoes.length > 0) where.profissao = profissoes;
 
-    // Filtro hierárquico
-    if (FilhalId) {
-      where.FilhalId = FilhalId;
-    } else if (SedeId) {
-      where.SedeId = SedeId;
-    }
-
-    // Busca membros conforme filtros básicos
+    // =============================
+    // BUSCA MEMBROS + RELAÇÕES
+    // =============================
     let membros = await Membros.findAll({
       where,
-      attributes: [
-        'id',
-        'nome',
-        'foto',
-        'genero',
-        'data_nascimento',
-        'estado_civil',
-        'telefone',
-        'email',
-        'endereco_cidade',
-        'profissao',
-        'batizado',
-        'ativo',
-        'SedeId',
-        'FilhalId'
+      include: [
+        {
+          model: CargoMembro,
+          include: [{ model: Cargo, attributes: ["id", "nome"] }],
+          attributes: ["id", "CargoId"],
+        },
+        {
+          model: DepartamentoMembros,
+          include: [{ model: Departamentos, attributes: ["id", "nome"] }],
+          attributes: ["id", "DepartamentoId"],
+        },
+        {
+          model: DadosCristaos,
+          attributes: ["id", "categoria_ministerial"], // 🔹 categorias ministeriais
+          required: false,
+        },
+        {
+          model: DadosAcademicos,
+          attributes: ["id", "habilitacoes"], // 🔹 habilitações
+          required: false,
+        },
       ],
-      order: [['id', 'DESC']]
+      attributes: [
+        "id",
+        "nome",
+        "foto",
+        "genero",
+        "data_nascimento",
+        "estado_civil",
+        "telefone",
+        "email",
+        "endereco_cidade",
+        "profissao",
+        "batizado",
+        "ativo",
+        "SedeId",
+        "FilhalId",
+      ],
+      order: [["id", "DESC"]],
     });
 
-    // Filtros extras (idades e batizado) aplicados em memória
-    membros = membros.filter(m => {
+    // =============================
+    // FILTROS COMPLEMENTARES
+    // =============================
+
+    // 🔸 Filtro por cargos
+    if (cargos.length > 0) {
+      membros = membros.filter((m) => {
+        if (!m.CargoMembros || m.CargoMembros.length === 0) return false;
+        const nomesCargos = m.CargoMembros.map((cm) => cm.Cargo?.nome).filter(Boolean);
+        return nomesCargos.some((nome) => cargos.includes(nome));
+      });
+    }
+
+    // 🔸 Filtro por departamentos
+    if (departamentos.length > 0) {
+      membros = membros.filter((m) => {
+        if (!m.DepartamentoMembros || m.DepartamentoMembros.length === 0) return false;
+        const nomesDepartamentos = m.DepartamentoMembros.map((dm) => dm.Departamento?.nome).filter(Boolean);
+        return nomesDepartamentos.some((nome) => departamentos.includes(nome));
+      });
+    }
+
+    // 🔸 Filtro por categorias ministeriais
+    if (categoriasMinisteriais.length > 0) {
+      membros = membros.filter((m) => {
+        const categorias = Array.isArray(m.DadosCristaos)
+          ? m.DadosCristaos.map((d) => d.categoria_ministerial).filter(Boolean)
+          : [m.DadosCristaos?.categoria_ministerial].filter(Boolean);
+
+        return categorias.some((cat) => categoriasMinisteriais.includes(cat));
+      });
+    }
+
+    // 🔸 Filtro por habilitações
+    if (habilitacoes.length > 0) {
+      membros = membros.filter((m) => {
+        const habs = Array.isArray(m.DadosAcademicos)
+          ? m.DadosAcademicos.map((d) => d.habilitacoes).filter(Boolean)
+          : [m.DadosAcademicos?.habilitacoes].filter(Boolean);
+
+        return habs.some((h) => habilitacoes.includes(h));
+      });
+    }
+
+    // 🔸 Filtros por idade e batizado
+    membros = membros.filter((m) => {
       let atende = true;
 
-      // Filtrar por faixa etária
+      // Faixa etária
       if (idades.length > 0 && m.data_nascimento) {
         const hoje = new Date();
         const nascimento = new Date(m.data_nascimento);
         let idade = hoje.getFullYear() - nascimento.getFullYear();
         const mes = hoje.getMonth() - nascimento.getMonth();
-        if (mes < 0 || (mes === 0 && hoje.getDate() < nascimento.getDate())) {
-          idade--;
-        }
+        if (mes < 0 || (mes === 0 && hoje.getDate() < nascimento.getDate())) idade--;
 
-        const faixa = 
-          idade <= 18 ? "0-18" :
-          idade <= 30 ? "19-30" :
-          idade <= 50 ? "31-50" : "51+";
+        const faixa =
+          idade <= 18
+            ? "0-18"
+            : idade <= 30
+            ? "19-30"
+            : idade <= 50
+            ? "31-50"
+            : "51+";
 
         if (!idades.includes(faixa)) atende = false;
       }
 
-      // Filtrar por batizado
+      // Batizado
       if (batizados.length > 0) {
         const status = m.batizado ? "Sim" : "Não";
         if (!batizados.includes(status)) atende = false;
@@ -3657,8 +5083,10 @@ router.post('/membros-relatorio', auth, async (req, res) => {
       return atende;
     });
 
-    // Monta resposta final
-    const membrosComFotoUrl = membros.map(membro => {
+    // =============================
+    // MONTA RESPOSTA FINAL
+    // =============================
+    const membrosComFotoUrl = membros.map((membro) => {
       // Calcula idade
       let idade = null;
       if (membro.data_nascimento) {
@@ -3666,25 +5094,50 @@ router.post('/membros-relatorio', auth, async (req, res) => {
         const nascimento = new Date(membro.data_nascimento);
         idade = hoje.getFullYear() - nascimento.getFullYear();
         const m = hoje.getMonth() - nascimento.getMonth();
-        if (m < 0 || (m === 0 && hoje.getDate() < nascimento.getDate())) {
-          idade--;
-        }
+        if (m < 0 || (m === 0 && hoje.getDate() < nascimento.getDate())) idade--;
       }
+
+      const cargosMembro =
+        membro.CargoMembros?.map((cm) => cm.Cargo?.nome).filter(Boolean) || [];
+
+      const departamentosMembro =
+        membro.DepartamentoMembros?.map((dm) => dm.Departamento?.nome).filter(Boolean) || [];
+
+      const categoriaMinisterial = Array.isArray(membro.DadosCristaos)
+        ? membro.DadosCristaos.map((d) => d.categoria_ministerial).filter(Boolean).join(", ")
+        : membro.DadosCristaos?.categoria_ministerial || "—";
+
+      const habilitacoesMembro = Array.isArray(membro.DadosAcademicos)
+        ? membro.DadosAcademicos.map((d) => d.habilitacoes).filter(Boolean).join(", ")
+        : membro.DadosAcademicos?.habilitacoes || "—";
 
       return {
         ...membro.dataValues,
         idade,
         batizadoStatus: membro.batizado ? "Sim" : "Não",
-        foto: membro.foto ? `${req.protocol}://${req.get('host')}${membro.foto}` : null,
+        cargos: cargosMembro.length > 0 ? cargosMembro.join(", ") : "—",
+        departamentos: departamentosMembro.length > 0 ? departamentosMembro.join(", ") : "—",
+        categoriaMinisterial,
+        habilitacoes: habilitacoesMembro,
+        foto: membro.foto
+          ? `${req.protocol}://${req.get("host")}${membro.foto}`
+          : null,
       };
     });
 
     return res.status(200).json(membrosComFotoUrl);
   } catch (error) {
-    console.error('Erro ao gerar relatório de membros:', error);
-    return res.status(500).json({ message: 'Erro interno do servidor.' });
+    console.error("Erro ao gerar relatório de membros:", error);
+    return res.status(500).json({
+      message: "Erro interno do servidor.",
+      error: error.message,
+    });
   }
 });
+
+
+
+
 
 
 
@@ -3853,6 +5306,402 @@ router.delete('/membros/:id', auth, async (req, res) => {
 
 
 
+
+
+router.get("/eventos", async (req, res) => {
+  try {
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0); // Normaliza a data para comparação sem horário
+    const diasAntes = 7; // Quantos dias antes gerar alerta
+
+    const notificacoesGeradas = [];
+    const notificacoesRemovidas = [];
+
+    // ---------------------------
+    // 🔹 Processar Atendimentos
+    // ---------------------------
+    const atendimentos = await Atendimento.findAll({
+      where: { status: "Agendado" },
+      include: { model: Membros, attributes: ["id", "nome", "foto"] },
+    });
+
+    for (const atendimento of atendimentos) {
+      const dataAtendimento = new Date(atendimento.data_hora);
+      dataAtendimento.setHours(0, 0, 0, 0);
+
+      const diffDias = Math.round((dataAtendimento - hoje) / (1000 * 60 * 60 * 24));
+
+      let msg = null;
+      const nomePastor = `Pastor ${atendimento.Membro?.nome || "membro"}`;
+
+      if (diffDias === 0) {
+        msg = `🚨 ALERTA: Hoje o ${nomePastor} tem atendimento marcado!`;
+      } else if (diffDias > 0 && diffDias <= diasAntes) {
+        msg = `⚠️ Lembrete: Atendimento do ${nomePastor} em ${diffDias} dia(s).`;
+      }
+
+      let notif = await Notificacao.findOne({
+        where: { AtendimentoId: atendimento.id, tipo: "atendimento" },
+      });
+
+      if (diffDias < 0) {
+        if (notif) {
+          await notif.destroy();
+          notificacoesRemovidas.push(`Atendimento: ${atendimento.id}`);
+        }
+        continue;
+      }
+
+      if (!msg) continue;
+
+      const observacao = atendimento.observacoes || "";
+
+      if (notif) {
+        notif.set({ mensagem: msg, data_enviada: new Date(), Descricao: observacao });
+        await notif.save({ fields: ["mensagem", "data_enviada", "Descricao"] });
+      } else {
+        notif = await Notificacao.create({
+          tipo: "atendimento",
+          MembroId: atendimento.MembroId,
+          AtendimentoId: atendimento.id,
+          mensagem: msg,
+          data_enviada: new Date(),
+          Descricao: observacao,
+        });
+      }
+
+      const notifCompleta = await Notificacao.findByPk(notif.id, {
+        include: { model: Membros, attributes: ["id", "nome", "foto"] },
+      });
+
+      notificacoesGeradas.push(notifCompleta);
+    }
+
+    // ---------------------------
+    // 🔹 Processar Agendamentos Pastorais
+    // ---------------------------
+    const agendamentos = await AgendaPastoral.findAll({ where: { status: "Pendente" } });
+
+    for (const agendamento of agendamentos) {
+      const dataAgendamento = new Date(agendamento.data_hora);
+      dataAgendamento.setHours(0, 0, 0, 0);
+
+      const diffDias = Math.round((dataAgendamento - hoje) / (1000 * 60 * 60 * 24));
+
+      let msg = null;
+      const nomePastor = `Pastor ${agendamento.responsavel || "responsável"}`;
+
+      if (diffDias === 0) {
+        msg = `🚨 ALERTA: Hoje o ${nomePastor} tem agendamento pastoral!`;
+      } else if (diffDias > 0 && diffDias <= diasAntes) {
+        msg = `⚠️ Lembrete: Agendamento pastoral do ${nomePastor} em ${diffDias} dia(s).`;
+      }
+
+      let notif = await Notificacao.findOne({
+        where: { AgendaPastoralId: agendamento.id, tipo: "agendamento_pastoral" },
+      });
+
+      if (diffDias < 0) {
+        if (notif) {
+          await notif.destroy();
+          notificacoesRemovidas.push(`Agendamento: ${agendamento.id}`);
+        }
+        continue;
+      }
+
+      if (!msg) continue;
+
+      const observacao = `Tipo: ${agendamento.tipo_cumprimento || ""} | Nome: ${agendamento.nome_pessoa || ""} | Responsável: ${agendamento.responsavel || ""} | Observação: ${agendamento.observacao || ""}`;
+
+      if (notif) {
+        notif.set({ mensagem: msg, data_enviada: new Date(), Descricao: observacao });
+        await notif.save({ fields: ["mensagem", "data_enviada", "Descricao"] });
+      } else {
+        notif = await Notificacao.create({
+          tipo: "agendamento_pastoral",
+          MembroId: agendamento.MembroId,
+          AgendaPastoralId: agendamento.id,
+          mensagem: msg,
+          data_enviada: new Date(),
+          Descricao: observacao,
+        });
+      }
+
+      const notifCompleta = await Notificacao.findByPk(notif.id, {
+        include: [
+          { model: Membros, attributes: ["id", "nome", "foto"] },
+          { model: AgendaPastoral },
+        ],
+      });
+
+      notificacoesGeradas.push(notifCompleta);
+    }
+
+    // ---------------------------
+    // 🔹 Processar Cultos
+    // ---------------------------
+    const cultos = await Cultos.findAll({
+      where: { status: "programado", ativo: 1 },
+    });
+
+    const cultosComTipo = await Promise.all(
+      cultos.map(async (culto) => {
+        // Verificar e incluir o tipo de culto
+        const tipoCulto = await TipoCulto.findByPk(culto.TipoCultoId);
+        return { ...culto.toJSON(), TipoCulto: tipoCulto };
+      })
+    );
+
+    for (const culto of cultosComTipo) {
+      const dataCulto = new Date(culto.dataHora);
+      dataCulto.setHours(0, 0, 0, 0);
+
+      const diffDias = Math.round((dataCulto - hoje) / (1000 * 60 * 60 * 24));
+
+      let msg = null;
+      const nomeResponsavel = culto.responsavel || "Responsável não informado";
+
+      // Verificação dos campos necessários para culto
+      if (!culto.responsavel || !culto.observacoes || !culto.local) {
+        console.log(`Culto ${culto.id} não possui informações suficientes. A notificação não será criada.`);
+        continue; // Se algum campo não for preenchido, a notificação não será gerada.
+      }
+
+      if (diffDias === 0) {
+        msg = `🚨 ALERTA: Hoje o culto será realizado!`;
+      } else if (diffDias > 0 && diffDias <= diasAntes) {
+        msg = `⚠️ Lembrete: Culto programado para ${diffDias} dia(s).`;
+      }
+
+      let notif = await Notificacao.findOne({
+        where: { CultoId: culto.id, tipo: "culto" },
+      });
+
+      if (diffDias < 0) {
+        if (notif) {
+          await notif.destroy();
+          notificacoesRemovidas.push(`Culto: ${culto.id}`);
+        }
+        continue;
+      }
+
+      if (!msg) continue;
+
+      // Incluindo o tipo do culto na descrição
+      const tipoCultoDescricao = culto.TipoCulto ? culto.TipoCulto.nome : "Tipo de culto não informado";
+      const observacao = `Responsável: ${culto.responsavel} | Local: ${culto.local} | Observações: ${culto.observacoes} | Tipo de culto: ${tipoCultoDescricao}`;
+
+      if (notif) {
+        notif.set({ mensagem: msg, data_enviada: new Date(), Descricao: observacao });
+        await notif.save({ fields: ["mensagem", "data_enviada", "Descricao"] });
+      } else {
+        notif = await Notificacao.create({
+          tipo: "culto",
+          CultoId: culto.id,
+          mensagem: msg,
+          data_enviada: new Date(),
+          Descricao: observacao,
+        });
+      }
+
+      const notifCompleta = await Notificacao.findByPk(notif.id, {
+        include: [
+          { model: Cultos, attributes: ["id", "dataHora", "local", "responsavel", "observacoes"] },
+        ],
+      });
+
+      notificacoesGeradas.push(notifCompleta);
+    }
+
+    // ✅ Retorna notificações relevantes
+    console.log(notificacoesGeradas);
+    res.json(notificacoesGeradas);
+  } catch (error) {
+    console.error("❌ Erro ao processar notificações de eventos:", error);
+    res.status(500).json({ message: "Erro interno ao processar notificações." });
+  }
+});
+
+
+
+
+
+
+
+// 🔹 Rota para listar todas as notificações
+router.get("/notificacoes", async (req, res) => {
+  try {
+    const notificacoes = await Notificacao.findAll({
+      order: [["data_enviada", "DESC"]], // Ordena da mais recente para a mais antiga
+      include: [
+        { model: Membros, attributes: ["id", "nome", "foto"] }, // Informação do membro
+        { model: Atendimento, attributes: ["id", "data_hora"] }, // Se for notificação de atendimento
+        { model: AgendaPastoral, attributes: ["id", "data_hora", "responsavel"] }, // Se for agendamento pastoral
+        { model: Cultos, attributes: ["id", "dataHora", "local", "responsavel", "observacoes"] }, // Se for culto
+      ],
+    });
+
+    res.json(notificacoes);
+  } catch (error) {
+    console.error("❌ Erro ao buscar notificações:", error);
+    res.status(500).json({ message: "Erro interno ao buscar notificações." });
+  }
+});
+
+
+
+
+
+
+
+
+router.get("/aniversarios", async (req, res) => {
+try {
+const hoje = new Date();
+const diasAntes = 7; // até 7 dias antes
+const diasDepois = 3; // até 3 dias depois (remover após isso)
+
+
+const membros = await Membros.findAll({
+  where: { ativo: true },
+  attributes: ["id", "nome", "foto", "data_nascimento"],
+});
+
+const notificacoesGeradas = [];
+const notificacoesRemovidas = [];
+
+for (const membro of membros) {
+  if (!membro.data_nascimento) continue;
+
+  const dataNasc = new Date(membro.data_nascimento);
+
+  // 🔹 Zera horas para evitar arredondamentos errados
+  const hojeSemHora = new Date(
+    hoje.getFullYear(),
+    hoje.getMonth(),
+    hoje.getDate()
+  );
+  const anivEsteAno = new Date(
+    hoje.getFullYear(),
+    dataNasc.getMonth(),
+    dataNasc.getDate()
+  );
+
+  // 🔹 Calcula diferença em dias (positivo = futuro, negativo = passado)
+  const diffDias = Math.floor(
+    (anivEsteAno - hojeSemHora) / (1000 * 60 * 60 * 24)
+  );
+
+  // 🔹 Busca notificação existente deste ano
+  const inicioAno = new Date(hoje.getFullYear(), 0, 1);
+  const notificacaoExistente = await Notificacao.findOne({
+    where: {
+      MembroId: membro.id,
+      tipo: "aniversario",
+      data_enviada: { [Op.gte]: inicioAno },
+    },
+  });
+
+  // 🔹 Se já passou mais que 3 dias → remove a notificação e pula
+  if (diffDias < -diasDepois) {
+    if (notificacaoExistente) {
+      await notificacaoExistente.destroy();
+      notificacoesRemovidas.push(membro.nome);
+    }
+    continue;
+  }
+
+  // 🔹 Monta mensagem apenas se estiver dentro do intervalo de interesse
+  let msg = null;
+  if (diffDias === 0) {
+    msg = `🎉 Hoje é o aniversário de ${membro.nome}! 🥳`;
+  } else if (diffDias > 0 && diffDias <= diasAntes) {
+    msg = `🎂 Faltam ${diffDias} dia(s) para o aniversário de ${membro.nome}!`;
+  } else if (diffDias < 0 && Math.abs(diffDias) <= diasDepois) {
+    msg = `🍰 O aniversário de ${membro.nome} foi há ${Math.abs(diffDias)} dia(s)!`;
+  }
+
+  // 🔹 Se não há mensagem, pula (fora da janela)
+  if (!msg) continue;
+
+  // 🔹 Atualiza ou cria nova notificação
+  if (notificacaoExistente) {
+    notificacaoExistente.mensagem = msg;
+    notificacaoExistente.data_enviada = new Date();
+    await notificacaoExistente.save();
+    notificacoesGeradas.push(notificacaoExistente);
+  } else {
+    const novaNotif = await Notificacao.create({
+      MembroId: membro.id,
+      tipo: "aniversario",
+      mensagem: msg,
+      data_enviada: new Date(),
+    });
+    notificacoesGeradas.push(novaNotif);
+  }
+}
+
+// 🔹 Buscar todas notificações atuais (deste ano)
+const todasNotificacoes = await Notificacao.findAll({
+  where: {
+    tipo: "aniversario",
+    createdAt: { [Op.gte]: new Date(hoje.getFullYear(), 0, 1) },
+  },
+  include: {
+    model: Membros,
+    attributes: ["id", "nome", "foto", "data_nascimento"],
+  },
+  order: [["createdAt", "DESC"]],
+});
+
+// 🔹 Adiciona URL completa da foto
+const notificacoesComFoto = todasNotificacoes.map((notif) => ({
+  ...notif.dataValues,
+  Membro: notif.Membro
+    ? {
+        ...notif.Membro.dataValues,
+        foto: notif.Membro.foto
+          ? `${req.protocol}://${req.get("host")}${notif.Membro.foto}`
+          : null,
+      }
+    : null,
+}));
+
+console.log("✅ Notificações criadas/atualizadas:", notificacoesGeradas.length);
+console.log("🗑️ Notificações removidas:", notificacoesRemovidas.length);
+
+res.json({
+  message: "Notificações de aniversário verificadas, atualizadas e limpas.",
+  criadasOuAtualizadas: notificacoesGeradas.length,
+  removidas: notificacoesRemovidas,
+  todasNotificacoes: notificacoesComFoto,
+});
+
+
+} catch (error) {
+console.error("❌ Erro ao verificar aniversários:", error);
+res.status(500).json({ message: "Erro interno ao verificar aniversários." });
+}
+});
+
+
+
+
+
+
+router.get("/contador", async (req, res) => {
+  try {
+    
+
+    const total = await Notificacao.count();
+ console.log(total)
+    res.json({ total });
+   
+  } catch (error) {
+    console.error("Erro ao contar notificações:", error);
+    res.status(500).json({ message: "Erro interno ao contar notificações." });
+  }
+});
 
 
 

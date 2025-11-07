@@ -29,6 +29,12 @@ const Culto = sequelize.define('Culto', {
     type: DataTypes.TEXT,
     allowNull: true
   },
+  status: {
+  type: DataTypes.ENUM('programado', 'realizado', 'cancelado'),
+  allowNull: false,
+  defaultValue: 'programado'
+}
+,
   // Se o culto ainda está ativo ou já cancelado
   ativo: {
     type: DataTypes.BOOLEAN,

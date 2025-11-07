@@ -9,7 +9,12 @@ import { Box, Typography, Paper, Grid, CircularProgress } from "@mui/material";
 import { styled } from "@mui/material/styles";
 import { motion } from "framer-motion";
 import Graficos from "../components/Graficos";
-
+import TabelaAtendimento from "../components/TabelaAtendimento";
+import TabelaComprimisso from "../components/TabelaCompromisso";
+import Compromissos from "../components/FormCompromisso";
+import ProgramaDoCulto from "../components/ProgramaCulto";
+import TabelaProgramaDoCulto from "../components/TabelaCultoProgramado";
+import Crincas from "../components/Criancas";
 /* ---------- ESTILOS ---------- */
 const DashboardCard = styled(Paper)(({ theme }) => ({
   padding: "35px 30px",
@@ -117,7 +122,9 @@ export default function Dashboard() {
   if (!dados) {
     return (
       <Box sx={{ textAlign: "center", mt: 10 }}>
-        <Typography variant="h5" color="error">Não foi possível carregar os dados do dashboard.</Typography>
+        <Typography variant="h5" color="error">
+          Não foi possível carregar os dados do dashboard.
+        </Typography>
       </Box>
     );
   }
@@ -162,9 +169,14 @@ export default function Dashboard() {
         {/* Despesas */}
         <Grid item xs={12} sm={6} md={6} lg={4}>
           <DashboardCard component={motion.div} initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.3 }}>
-            <IconWrapper><FaChartPie /></IconWrapper>
+            <IconWrapper sx={{ background: "linear-gradient(135deg, #f44336, #ff7961)" }}>
+              <FaChartPie />
+            </IconWrapper>
             <CardTitle>Despesas (Mês)</CardTitle>
-            <CardValue>{financeiro.despesasMes.toLocaleString()} Kz</CardValue>
+            {/* 🔴 Valor em vermelho */}
+            <CardValue sx={{ color: "#f44336" }}>
+              {financeiro.despesasMes.toLocaleString()} Kz
+            </CardValue>
           </DashboardCard>
         </Grid>
 
@@ -231,7 +243,7 @@ export default function Dashboard() {
           </DashboardCard>
         </Grid>
 
-        {/* Próximos Cultos - ocupa toda a largura */}
+        {/* Próximos Cultos */}
         <Grid item xs={12}>
           <DashboardCard component={motion.div} initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.8 }}>
             <IconWrapper><FaCalendarAlt /></IconWrapper>
@@ -247,7 +259,11 @@ export default function Dashboard() {
             </Box>
             {proximosEventos.alertas.length > 0 && (
               <Box sx={{ mt: 3 }}>
-                <Typography variant="subtitle1" color="error" sx={{ fontWeight: 700, mb: 1, display: "flex", alignItems: "center", gap: 1 }}>
+                <Typography
+                  variant="subtitle1"
+                  color="error"
+                  sx={{ fontWeight: 700, mb: 1, display: "flex", alignItems: "center", gap: 1 }}
+                >
                   <FaExclamationTriangle /> Alertas de Eventos
                 </Typography>
                 <Box sx={{ maxHeight: "220px", overflowY: "auto" }}>
@@ -263,6 +279,10 @@ export default function Dashboard() {
         </Grid>
 
       </Grid>
+
+      <Box sx={{ mt: 16 }}>
+        <Crincas />
+      </Box>
 
       {/* GRÁFICOS */}
       <Box sx={{ mt: 16 }}>

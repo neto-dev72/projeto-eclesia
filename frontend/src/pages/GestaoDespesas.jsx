@@ -9,6 +9,10 @@ import {
   Button,
   Stack,
   Modal,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from "@mui/material";
 import { motion } from "framer-motion";
 import { Paid, Add, Edit, Delete } from "@mui/icons-material";
@@ -20,6 +24,8 @@ export default function ListaDespesas() {
   const [despesas, setDespesas] = useState([]);
   const [loading, setLoading] = useState(false);
   const [openModal, setOpenModal] = useState(false);
+  const [selectedDespesa, setSelectedDespesa] = useState(null);
+  const [deleteConfirm, setDeleteConfirm] = useState({ open: false, despesaId: null });
 
   const fetchDespesas = async () => {
     setLoading(true);
@@ -36,6 +42,26 @@ export default function ListaDespesas() {
   useEffect(() => {
     fetchDespesas();
   }, []);
+
+  const handleOpenModal = (despesa = null) => {
+    setSelectedDespesa(despesa);
+    setOpenModal(true);
+  };
+
+  const handleCloseModal = () => {
+    setSelectedDespesa(null);
+    setOpenModal(false);
+  };
+
+  const handleDelete = async () => {
+    try {
+      await api.delete(`/despesas/${deleteConfirm.despesaId}`);
+      setDeleteConfirm({ open: false, despesaId: null });
+      fetchDespesas();
+    } catch (error) {
+      console.error("Erro ao deletar despesa:", error);
+    }
+  };
 
   const listItemVariants = {
     hidden: { opacity: 0, y: 18, scale: 0.985 },
@@ -88,7 +114,7 @@ export default function ListaDespesas() {
 
           <Button
             startIcon={<Add />}
-            onClick={() => setOpenModal(true)}
+            onClick={() => handleOpenModal(null)}
             sx={{
               borderRadius: "999px",
               px: 3,
@@ -151,10 +177,16 @@ export default function ListaDespesas() {
                   </Box>
 
                   <Stack direction="row" spacing={1}>
-                    <IconButton sx={{ color: "#00e5ff", "&:hover": { color: "#7c4dff" } }}>
+                    <IconButton
+                      sx={{ color: "#00e5ff", "&:hover": { color: "#7c4dff" } }}
+                      onClick={() => handleOpenModal(despesa)}
+                    >
                       <Edit />
                     </IconButton>
-                    <IconButton sx={{ color: "#ff6b6b", "&:hover": { color: "#ff3b3b" } }}>
+                    <IconButton
+                      sx={{ color: "#ff6b6b", "&:hover": { color: "#ff3b3b" } }}
+                      onClick={() => setDeleteConfirm({ open: true, despesaId: despesa.id })}
+                    >
                       <Delete />
                     </IconButton>
                   </Stack>
@@ -164,8 +196,8 @@ export default function ListaDespesas() {
           </Box>
         )}
 
-        {/* Modal cinematográfico */}
-        <Modal open={openModal} onClose={() => setOpenModal(false)}>
+        {/* Modal para formulário */}
+        <Modal open={openModal} onClose={handleCloseModal}>
           <Box
             sx={{
               position: "absolute",
@@ -182,27 +214,31 @@ export default function ListaDespesas() {
               overflowY: "auto",
             }}
           >
-            <Typography
-              variant="h6"
-              mb={2}
-              fontWeight="bold"
-              sx={{
-                background: "linear-gradient(90deg,#00e5ff,#7c4dff)",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-              }}
-            >
-              Nova Despesa
-            </Typography>
             <FormDespesas
+              despesa={selectedDespesa}
               onSuccess={() => {
-                setOpenModal(false);
+                handleCloseModal();
                 fetchDespesas();
               }}
-              onCancel={() => setOpenModal(false)}
+              onCancel={handleCloseModal}
             />
           </Box>
         </Modal>
+
+        {/* Confirmação de exclusão */}
+        <Dialog
+          open={deleteConfirm.open}
+          onClose={() => setDeleteConfirm({ open: false, despesaId: null })}
+        >
+          <DialogTitle>Confirmar exclusão</DialogTitle>
+          <DialogContent>Deseja realmente excluir esta despesa?</DialogContent>
+          <DialogActions>
+            <Button onClick={() => setDeleteConfirm({ open: false, despesaId: null })}>Cancelar</Button>
+            <Button color="error" onClick={handleDelete}>
+              Excluir
+            </Button>
+          </DialogActions>
+        </Dialog>
       </Box>
 
       <style>{`

@@ -7,12 +7,23 @@ import {
   BarElement,
   ArcElement,
   Tooltip,
-  Legend
+  Legend,
 } from "chart.js";
 import { Bar, Doughnut } from "react-chartjs-2";
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar as ReBar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip as ReTooltip,
+  Legend as ReLegend,
+  Cell,
+} from "recharts";
 import { Box, Typography, Button, ButtonGroup } from "@mui/material";
 import { motion, AnimatePresence } from "framer-motion";
-import { People, Timeline, History } from "@mui/icons-material";
+import { People, Timeline } from "@mui/icons-material";
 import "bootstrap/dist/css/bootstrap.min.css";
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, Tooltip, Legend);
@@ -52,7 +63,7 @@ export default function Graficos() {
       </Box>
     );
 
-  // ---------- DATASETS ----------
+  // ---------- DATASETS Chart.js ----------
   const membrosData = {
     labels: ["Ativos", "Inativos"],
     datasets: [
@@ -60,9 +71,9 @@ export default function Graficos() {
         label: "Membros",
         data: [dados.membrosAtivosInativos.ativos, dados.membrosAtivosInativos.inativos],
         backgroundColor: ["#42a5f5", "#9e9e9e"],
-        borderWidth: 2
-      }
-    ]
+        borderWidth: 2,
+      },
+    ],
   };
 
   const generoData = {
@@ -72,21 +83,9 @@ export default function Graficos() {
         label: "Gênero",
         data: [dados.distribuicaoGenero.homens, dados.distribuicaoGenero.mulheres],
         backgroundColor: ["#1976d2", "#ec407a"],
-        borderWidth: 2
-      }
-    ]
-  };
-
-  const faixasData = {
-    labels: Object.keys(dados.faixasEtarias),
-    datasets: [
-      {
-        label: "Faixa Etária",
-        data: Object.values(dados.faixasEtarias),
-        backgroundColor: ["#5c6bc0", "#26a69a", "#ffee58", "#ef5350"],
-        borderWidth: 2
-      }
-    ]
+        borderWidth: 2,
+      },
+    ],
   };
 
   const batismoData = {
@@ -96,109 +95,138 @@ export default function Graficos() {
         label: "Batismo",
         data: [dados.situacaoBatismo.batizados, dados.situacaoBatismo.naoBatizados],
         backgroundColor: ["#29b6f6", "#bdbdbd"],
-        borderWidth: 2
-      }
-    ]
-  };
-
-  const financeiroData = {
-    labels: ["Contribuições", "Despesas"],
-    datasets: [
-      {
-        label: "Financeiro",
-        data: [dados.financeiro.contribMes, dados.financeiro.despMes],
-        backgroundColor: ["#43a047", "#ef5350"],
-        borderWidth: 2
-      }
-    ]
+        borderWidth: 2,
+      },
+    ],
   };
 
   const presencasFuturasData = {
-    labels: dados.cultos.futuros.map(p => `${p.tipoCulto} (${new Date(p.data).toLocaleDateString()})`),
+    labels: dados.cultos.futuros.map(
+      (p) => `${p.tipoCulto} (${new Date(p.data).toLocaleDateString()})`
+    ),
     datasets: [
       {
         label: "Presenças por Culto",
-        data: dados.cultos.futuros.map(p => p.totalPresenca),
-        backgroundColor: "#1e88e5"
-      }
-    ]
+        data: dados.cultos.futuros.map((p) => p.totalPresenca),
+        backgroundColor: "#1e88e5",
+      },
+    ],
   };
 
   const contribFuturasData = {
-    labels: dados.cultos.futuros.map(c => `${c.tipoCulto} (${new Date(c.data).toLocaleDateString()})`),
+    labels: dados.cultos.futuros.map(
+      (c) => `${c.tipoCulto} (${new Date(c.data).toLocaleDateString()})`
+    ),
     datasets: [
       {
         label: "Contribuições por Culto (Kz)",
-        data: dados.cultos.futuros.map(c => c.totalContribuicao),
-        backgroundColor: "#ffb300"
-      }
-    ]
+        data: dados.cultos.futuros.map((c) => c.totalContribuicao),
+        backgroundColor: "#ffb300",
+      },
+    ],
   };
 
-  const presencasPassadasData = {
-    labels: dados.cultos.passados.map(p => `${p.tipoCulto} (${new Date(p.data).toLocaleDateString()})`),
-    datasets: [
-      {
-        label: "Presenças por Culto",
-        data: dados.cultos.passados.map(p => p.totalPresenca),
-        backgroundColor: "#26a69a"
-      }
-    ]
-  };
+  // ---------- DATASETS RECHARTS ----------
+  const faixasDataRecharts = Object.entries(dados.faixasEtarias).map(([faixa, qtd]) => ({
+    faixa,
+    quantidade: qtd,
+  }));
 
-  const contribPassadasData = {
-    labels: dados.cultos.passados.map(c => `${c.tipoCulto} (${new Date(c.data).toLocaleDateString()})`),
-    datasets: [
-      {
-        label: "Contribuições por Culto (Kz)",
-        data: dados.cultos.passados.map(c => c.totalContribuicao),
-        backgroundColor: "#8e24aa"
-      }
-    ]
-  };
+  const faixaColors = [
+    "#5c6bc0",
+    "#26a69a",
+    "#ffee58",
+    "#ef5350",
+    "#8e24aa",
+    "#42a5f5",
+  ];
 
+  const financeiroRecharts = [
+    { nome: "Contribuições", valor: dados.financeiro.contribMes, cor: "#43a047" },
+    { nome: "Despesas", valor: dados.financeiro.despMes, cor: "#ef5350" },
+  ];
+
+  // ---------- Chart.js Options ----------
   const chartOptions = {
     plugins: {
       legend: { labels: { color: "#333", font: { size: 14, weight: 600 } } },
       tooltip: {
         backgroundColor: "rgba(0,0,0,0.85)",
         titleColor: "#fff",
-        bodyColor: "#fff"
-      }
+        bodyColor: "#fff",
+      },
     },
     responsive: true,
-    maintainAspectRatio: false
+    maintainAspectRatio: false,
   };
 
+  // ---------- SEÇÕES ----------
   const secoes = {
     membros: [
       { title: "Atividade dos Membros", chart: <Doughnut data={membrosData} options={chartOptions} /> },
       { title: "Distribuição de Gênero", chart: <Doughnut data={generoData} options={chartOptions} /> },
-      { title: "Faixas Etárias", chart: <Bar data={faixasData} options={chartOptions} /> },
-      { title: "Situação de Batismo", chart: <Doughnut data={batismoData} options={chartOptions} /> }
+      {
+        title: "Faixas Etárias (Recharts)",
+        chart: (
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={faixasDataRecharts} margin={{ top: 20, right: 30, left: 0, bottom: 10 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
+              <XAxis dataKey="faixa" />
+              <YAxis />
+              <ReTooltip />
+              <ReLegend />
+              <ReBar dataKey="quantidade" radius={[6, 6, 0, 0]}>
+                {faixasDataRecharts.map((_, idx) => (
+                  <Cell key={idx} fill={faixaColors[idx % faixaColors.length]} />
+                ))}
+              </ReBar>
+            </BarChart>
+          </ResponsiveContainer>
+        ),
+      },
+      { title: "Situação de Batismo", chart: <Doughnut data={batismoData} options={chartOptions} /> },
     ],
     atuais: [
-      { title: "Financeiro: Contribuições vs Despesas", chart: <Bar data={financeiroData} options={chartOptions} /> },
+      {
+        title: "Financeiro (Recharts): Contribuições vs Despesas",
+        chart: (
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={financeiroRecharts} margin={{ top: 20, right: 30, left: 0, bottom: 10 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
+              <XAxis dataKey="nome" />
+              <YAxis />
+              <ReTooltip />
+              <ReLegend />
+              <ReBar dataKey="valor" radius={[6, 6, 0, 0]}>
+                {financeiroRecharts.map((item, idx) => (
+                  <Cell key={idx} fill={item.cor} />
+                ))}
+              </ReBar>
+            </BarChart>
+          </ResponsiveContainer>
+        ),
+      },
       { title: "Presenças por Culto", chart: <Bar data={presencasFuturasData} options={chartOptions} /> },
-      { title: "Contribuições por Culto", chart: <Bar data={contribFuturasData} options={chartOptions} /> }
+      { title: "Contribuições por Culto", chart: <Bar data={contribFuturasData} options={chartOptions} /> },
     ],
-    historico: [
-      { title: "Presenças por Culto", chart: <Bar data={presencasPassadasData} options={chartOptions} /> },
-      { title: "Contribuições por Culto", chart: <Bar data={contribPassadasData} options={chartOptions} /> }
-    ]
   };
 
+  // ---------- RENDER ----------
   return (
     <Box
       sx={{
         py: 6,
         px: { xs: 2, md: 10 },
         background: "linear-gradient(135deg, #e3f2fd, #fafafa)",
-        minHeight: "100vh"
+        minHeight: "100vh",
       }}
     >
       {/* Título */}
-      <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
+      <motion.div
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6 }}
+      >
         <Typography
           variant="h4"
           align="center"
@@ -209,16 +237,22 @@ export default function Graficos() {
             borderBottom: "3px solid #1976d2",
             pb: 1,
             color: "#0d47a1",
-            textShadow: "0 2px 10px rgba(0,0,0,0.15)"
+            textShadow: "0 2px 10px rgba(0,0,0,0.15)",
           }}
         >
           📊 Painel de Análise Geral
         </Typography>
       </motion.div>
 
-      {/* Botões Premium */}
+      {/* Botões de Seção */}
       <Box sx={{ display: "flex", justifyContent: "center", mb: 6 }}>
-        <ButtonGroup sx={{ borderRadius: 5, overflow: "hidden", boxShadow: "0 10px 30px rgba(0,0,0,0.15)" }}>
+        <ButtonGroup
+          sx={{
+            borderRadius: 5,
+            overflow: "hidden",
+            boxShadow: "0 10px 30px rgba(0,0,0,0.15)",
+          }}
+        >
           <Button
             startIcon={<People />}
             variant={secao === "membros" ? "contained" : "outlined"}
@@ -228,9 +262,15 @@ export default function Graficos() {
               py: 1.2,
               fontWeight: 600,
               fontFamily: "'Poppins', sans-serif",
-              background: secao === "membros" ? "linear-gradient(90deg, #1976d2, #42a5f5)" : "transparent",
+              background:
+                secao === "membros"
+                  ? "linear-gradient(90deg, #1976d2, #42a5f5)"
+                  : "transparent",
               color: secao === "membros" ? "#fff" : "#1976d2",
-              "&:hover": { background: "linear-gradient(90deg, #1565c0, #42a5f5)", color: "#fff" }
+              "&:hover": {
+                background: "linear-gradient(90deg, #1565c0, #42a5f5)",
+                color: "#fff",
+              },
             }}
           >
             Visão dos Membros
@@ -245,29 +285,18 @@ export default function Graficos() {
               py: 1.2,
               fontWeight: 600,
               fontFamily: "'Poppins', sans-serif",
-              background: secao === "atuais" ? "linear-gradient(90deg, #009688, #4db6ac)" : "transparent",
+              background:
+                secao === "atuais"
+                  ? "linear-gradient(90deg, #009688, #4db6ac)"
+                  : "transparent",
               color: secao === "atuais" ? "#fff" : "#009688",
-              "&:hover": { background: "linear-gradient(90deg, #00796b, #4db6ac)", color: "#fff" }
+              "&:hover": {
+                background: "linear-gradient(90deg, #00796b, #4db6ac)",
+                color: "#fff",
+              },
             }}
           >
             Indicadores Atuais
-          </Button>
-
-          <Button
-            startIcon={<History />}
-            variant={secao === "historico" ? "contained" : "outlined"}
-            onClick={() => setSecao("historico")}
-            sx={{
-              px: 3,
-              py: 1.2,
-              fontWeight: 600,
-              fontFamily: "'Poppins', sans-serif",
-              background: secao === "historico" ? "linear-gradient(90deg, #8e24aa, #ba68c8)" : "transparent",
-              color: secao === "historico" ? "#fff" : "#8e24aa",
-              "&:hover": { background: "linear-gradient(90deg, #6a1b9a, #ba68c8)", color: "#fff" }
-            }}
-          >
-            Histórico de Cultos Passados
           </Button>
         </ButtonGroup>
       </Box>
@@ -292,7 +321,7 @@ export default function Graficos() {
                     background: "rgba(255,255,255,0.75)",
                     boxShadow: "0 20px 50px rgba(0,0,0,0.12)",
                     height: 400,
-                    transition: "all 0.3s ease"
+                    transition: "all 0.3s ease",
                   }}
                 >
                   <Typography
@@ -302,7 +331,7 @@ export default function Graficos() {
                       fontWeight: 700,
                       mb: 3,
                       fontFamily: "'Poppins', sans-serif",
-                      color: "#0d47a1"
+                      color: "#0d47a1",
                     }}
                   >
                     {g.title}

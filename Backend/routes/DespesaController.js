@@ -23,7 +23,8 @@ const Despesas = require("../modells/Despesas");
 const CargoMembro = require("../modells/CargoMembro");
 
 
-const Op = require("sequelize");
+const { Op } = require('sequelize');
+
 
 
 
@@ -144,44 +145,62 @@ router.get('/lista/tipos-despesa', auth, async (req, res) => {
 
 
 
+
+
+
 // GET /relatorio/despesas - relatório de despesas filtrado pelo usuário logado
 router.get('/relatorio/despesas', auth, async (req, res) => {
   try {
     const { startDate, endDate, tipo } = req.query;
     const { SedeId, FilhalId } = req.usuario;
 
-    // Construir filtro inicial
+    console.log('📅 Filtros recebidos:', { startDate, endDate, tipo });
+    console.log('🏢 Usuário logado:', { SedeId, FilhalId });
+
     let where = {};
 
-    // Filtrar por intervalo de datas
+    // 📆 Corrige o filtro de datas
     if (startDate && endDate) {
-      where.data = { [Op.between]: [startDate, endDate] };
+      const inicio = new Date(`${startDate}T00:00:00`);
+      const fim = new Date(`${endDate}T23:59:59`);
+      where.data = { [Op.between]: [inicio, fim] };
+      console.log('🗓️ Intervalo de datas aplicado:', where.data);
     }
 
-    // Filtrar pelo tipo de despesa (Fixa ou Variável)
+    // 🧾 Filtro de tipo
     if (tipo) {
       where.tipo = tipo;
     }
 
-    // Filtro hierárquico pelo usuário logado
-    if (SedeId) {
-      where.SedeId = SedeId;
-    } else if (FilhalId) {
+    // 🏛️ Filtro hierárquico
+    if (FilhalId) {
       where.FilhalId = FilhalId;
+    } else if (SedeId) {
+      where.SedeId = SedeId;
     }
 
-    // Buscar despesas
+    console.log('🔎 Filtro final aplicado:', JSON.stringify(where, null, 2));
+
     const despesas = await Despesas.findAll({
       where,
       order: [['data', 'DESC'], ['createdAt', 'DESC']],
     });
 
-    res.status(200).json(despesas);
+    console.log(`✅ ${despesas.length} despesas encontradas.`);
+    return res.status(200).json(despesas);
   } catch (error) {
-    console.error('Erro ao gerar relatório de despesas:', error);
-    res.status(500).json({ message: 'Erro ao gerar relatório de despesas.' });
+    console.error('❌ Erro ao gerar relatório de despesas:', error);
+    return res.status(500).json({ message: 'Erro ao gerar relatório de despesas.' });
   }
 });
+
+
+
+
+
+
+
+
 
 
 // PUT /despesas/:id

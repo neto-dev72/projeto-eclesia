@@ -27,6 +27,7 @@ import GestaoIgrejas from '../pages/GestaoIgrejas';
 import ListaCultos from '../pages/Cultos/ListaCultos';
 import GestaoDepartamento from '../pages/GestaoDepartamentos';
 import Perfil from '../pages/Perfil';
+import TabelaCulto from '../pages/Cultos/GestaoCulto'; // <-- NOVA ROTA PÚBLICA
 
 // Novas páginas públicas
 import SobreEquipe from '../components/SobreEquipe';
@@ -34,9 +35,26 @@ import Planos from '../components/Planos';
 import Testemunhos from '../components/Testemunhos';
 import Contato from '../components/Contato';
 import Servicos from '../components/servicos';
+import Aniversarios from '../pages/Notificacoes';
+import Atendimento from '../components/FormAtendimento'; // <-- nova página
+
+// Novas rotas públicas de Atendimento e Compromisso Pastoral
+import GestaoAtendimento from '../components/TabelaAtendimento'; // <-- rota pública
+import GestaoCompromisso from '../components/TabelaCompromisso'; // <-- rota pública
+
+
+import FormComprimisso from '../components/FormCompromisso'; // <-- rota pública
+
 
 // Dashboard agora é público
 import Dashboard from '../pages/Dashboard';
+
+// Dashboard agora é público
+import Salarios from '../pages/Salarios';
+import TabelaSalarios from '../components/TabelaSalarios'; // <-- nova página
+
+// Importa o novo componente de Dashboard de Eventos
+import EventosDashboard from '../components/Dasheventos'; // <-- Novo componente para /dasheventos
 
 // ---------------- AuthWrapper ---------------- //
 function AuthWrapper({ children }) {
@@ -101,8 +119,22 @@ export default function AppRoutes() {
         <Route path="/testemunhos" element={<Testemunhos />} />
         <Route path="/contato" element={<Contato />} />
         <Route path="/servicos" element={<Servicos />} />
-        <Route path="/dashboard" element={<Dashboard />} /> {/* <-- agora é público */}
+        <Route path="/salarios" element={<Salarios />} /> {/* PÚBLICA */}
+        <Route path="/tabelaSalarios" element={<TabelaSalarios />} /> {/* NOVA ROTA PÚBLICA */}
+        <Route path="/dashboard" element={<Dashboard />} /> {/* agora é público */}
+        <Route path="/aniversarios" element={<Aniversarios />} /> {/* rota pública */}
+        <Route path="/atendimento" element={<Atendimento />} /> {/* rota pública */}
+        <Route path="/TabelaCulto" element={<TabelaCulto />} /> {/* NOVA ROTA PÚBLICA */}
+        <Route path="/gestaoAtendimento" element={<GestaoAtendimento />} /> {/* rota pública */}
+        <Route path="/gestaoCompromisso" element={<GestaoCompromisso />} /> {/* rota pública */}
 
+        {/* Nova Rota Pública para o Dashboard de Eventos */}
+        <Route path="/dasheventos" element={<EventosDashboard />} /> {/* Nova Rota Pública */}
+
+        
+        {/* Nova Rota Pública para o Dashboard de Eventos */}
+        <Route path="/formcomprimissos" element={< FormComprimisso />} /> {/* Nova Rota Pública */}
+        
         {/* Rotas protegidas (usuários autenticados) */}
         <Route element={<AuthWrapper><Outlet /></AuthWrapper>}>
           <Route path="/membros" element={<Membros />} />

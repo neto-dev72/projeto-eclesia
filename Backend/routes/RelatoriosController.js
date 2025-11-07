@@ -11,6 +11,14 @@ const Contribuicao = require("../modells/Contribuicoes");
 
 
 
+
+const Atendimento = require("../modells/Atendimento");
+
+const Sede  = require("../modells/Sede")
+const Filhal = require("../modells/filhal")
+
+
+
 const TipoContribuicao = require("../modells/TipoContribuicao");
 
 const TipoCulto = require("../modells/TipoCulto");
@@ -86,7 +94,7 @@ router.get('/cultos', auth, async (req, res) => {
           attributes: ['id', 'total', 'homens', 'mulheres', 'criancas'],
         },
       ],
-      order: [['dataHora', 'ASC']],
+      order: [['dataHora', 'DESC']],
     });
 
     // Agrupamento manual por tipo de culto
@@ -174,6 +182,10 @@ router.get('/cultos', auth, async (req, res) => {
     res.status(500).json({ message: 'Erro ao listar cultos agrupados' });
   }
 });
+
+
+
+
 
 
 
@@ -593,6 +605,9 @@ router.get('/lista/filtros-membros', auth, async (req, res) => {
     res.status(500).json({ message: 'Erro ao carregar filtros', error: error.message });
   }
 });
+
+
+
 
 
 

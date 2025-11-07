@@ -247,11 +247,13 @@ export default function Home() {
       <Footer />
 
       {/* 🔹 ÍCONE FIXO WHATSAPP PREMIUM COM ONDAS */}
+
+
       <Zoom in={true}>
         <Box
           component="a"
           href={`https://wa.me/244923519571?text=${encodeURIComponent(
-            "Olá, caro(a) cliente, esperamos que tudo vá bem! Se clicou é porque está interessado! Expõe a tua questão, que estamos disponíveis em respondê-lo!"
+            "Olá! estou interessado na aplicação e gostaria de começar a usá-la. Poderia me fornecer mais informações?"
           )}`}
           target="_blank"
           sx={(theme) => ({

@@ -54,6 +54,26 @@ export default function FormMembros({ onSuccess, membroData }) {
   const [cargosOpen, setCargosOpen] = useState(false);
   const [departamentosOpen, setDepartamentosOpen] = useState(false);
 
+
+  // Dentro do componente FormMembros
+const [usuarios, setUsuarios] = useState([]);
+
+// Carregar usuários para o dropdown
+useEffect(() => {
+  const fetchUsuarios = async () => {
+    try {
+      const res = await api.get('/usuarios'); // rota GET que criamos
+      setUsuarios(res.data.usuarios || []);
+    } catch (err) {
+      console.error(err);
+      setMensagem({ tipo: 'error', texto: 'Erro ao carregar usuários.' });
+    }
+  };
+
+  fetchUsuarios();
+}, []);
+
+
   const habilitacoesOptions = [
     'Ensino Primário',
     'Ensino Secundário / Médio',
@@ -258,6 +278,26 @@ export default function FormMembros({ onSuccess, membroData }) {
       <TextField fullWidth label="Nome *" name="nome" value={formData.nome} onChange={handleChange} margin="normal" required
         InputLabelProps={{ style: { color: '#b3e5fc' } }} inputProps={{ style: { color: 'white' } }}
       />
+<TextField
+  select
+  fullWidth
+  label="Usuário Vinculado"
+  name="MembroIdUsuario"   // <--- deve bater com a rota
+  value={formData.MembroIdUsuario || ''} // <--- opcional: você pode criar essa propriedade no formData
+  onChange={handleChange}
+  margin="normal"
+  InputLabelProps={{ style: { color: '#b3e5fc' } }}
+  inputProps={{ style: { color: 'white' } }}
+  SelectProps={selectStyles}
+>
+  <MenuItem value="">Nenhum</MenuItem>
+  {usuarios.map((usuario) => (
+    <MenuItem key={usuario.id} value={usuario.id}>
+      {usuario.nome} ({usuario.funcao})
+    </MenuItem>
+  ))}
+</TextField>
+
 
       <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
         <Button variant="contained" component="label" sx={{ mr: 2, color: 'white', backgroundColor: '#1976d2', '&:hover': { backgroundColor: '#1565c0' } }}>

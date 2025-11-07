@@ -1,3 +1,4 @@
+// src/pages/RelatorioMembros.js
 import React, { useEffect, useState, useMemo } from "react";
 import {
   Container,
@@ -12,10 +13,6 @@ import {
   Button,
   Box,
   Stack,
-  Grid,
-  Card,
-  CardContent,
-  CardMedia,
   Chip,
   CircularProgress,
   CssBaseline,
@@ -25,33 +22,23 @@ import {
   FormControlLabel,
   Fade,
   Slide,
+  TextField,
 } from "@mui/material";
-import { Brightness4, Brightness7, FilterAlt } from "@mui/icons-material";
+import {
+  Brightness4,
+  Brightness7,
+  FilterAlt,
+  Search,
+  PictureAsPdf,
+  Description,
+} from "@mui/icons-material";
 import { createTheme, ThemeProvider, styled } from "@mui/material/styles";
+import { DataGrid } from "@mui/x-data-grid";
 import api from "../../api/axiosConfig";
+import * as XLSX from "xlsx";
+import jsPDF from "jspdf";
 
 /* ---------- Styled ---------- */
-const GlassCard = styled(Card)(({ theme }) => ({
-  borderRadius: 16,
-  background:
-    theme.palette.mode === "dark"
-      ? "linear-gradient(135deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01))"
-      : "rgba(255,255,255,0.70)",
-  backdropFilter: "blur(8px)",
-  boxShadow:
-    theme.palette.mode === "dark"
-      ? "0 8px 30px rgba(2,6,23,0.6)"
-      : "0 10px 30px rgba(15,23,42,0.08)",
-  transition: "transform 250ms ease, box-shadow 250ms ease",
-  "&:hover": {
-    transform: "translateY(-8px)",
-    boxShadow:
-      theme.palette.mode === "dark"
-        ? "0 14px 45px rgba(2,6,23,0.75)"
-        : "0 20px 50px rgba(15,23,42,0.12)",
-  },
-}));
-
 const GradientHeader = styled(Box)(({ theme }) => ({
   borderRadius: 18,
   padding: theme.spacing(3),
@@ -72,6 +59,10 @@ export default function RelatorioMembros() {
     profissoes: [],
     idades: [],
     batizados: [],
+    cargos: [],
+    departamentos: [],
+    categoriasMinisteriais: [],
+    habilitacoes: [],
   });
 
   const [filtroAtivo, setFiltroAtivo] = useState({
@@ -80,21 +71,25 @@ export default function RelatorioMembros() {
     profissoes: [],
     idades: [],
     batizados: [],
+    cargos: [],
+    departamentos: [],
+    categoriasMinisteriais: [],
+    habilitacoes: [],
   });
 
   const [relatorio, setRelatorio] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [mode, setMode] = useState("dark");
+  const [mode, setMode] = useState("light");
   const [snack, setSnack] = useState({ open: false, message: "", severity: "success" });
+  const [search, setSearch] = useState("");
 
-  // Busca filtros iniciais com contagem de membros
+  // 🔹 Busca filtros iniciais
   useEffect(() => {
     const fetchFiltros = async () => {
       try {
         const res = await api.get("/membros-filtros");
         const data = res.data;
 
-        // Adiciona contagem nos labels
         const addContagem = (arr, campo) => {
           return arr.map((val) => {
             const valorSemParenteses = val.replace(/\s\(\d+\smembros\)$/, "");
@@ -119,6 +114,10 @@ export default function RelatorioMembros() {
           profissoes: addContagem(data.filtros.profissoes, "profissao"),
           idades: addContagem(data.filtros.idades, "idades"),
           batizados: addContagem(data.filtros.batizados, "batizados"),
+          cargos: data.filtros.cargos || [],
+          departamentos: data.filtros.departamentos || [],
+          categoriasMinisteriais: data.filtros.categoriasMinisteriais || [],
+          habilitacoes: data.filtros.habilitacoes || [],
         });
       } catch (err) {
         console.error(err);
@@ -130,7 +129,6 @@ export default function RelatorioMembros() {
 
   const handleChange = (e, key) => {
     const { value } = e.target;
-    // Remove contagem ao atualizar o filtro ativo
     const selecionados = typeof value === "string" ? value.split(",") : value;
     setFiltroAtivo({
       ...filtroAtivo,
@@ -152,6 +150,45 @@ export default function RelatorioMembros() {
     }
   };
 
+  // 📦 Exportar para Excel
+  const exportarExcel = () => {
+    if (relatorio.length === 0) return;
+    const ws = XLSX.utils.json_to_sheet(relatorio);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Relatório de Membros");
+    XLSX.writeFile(wb, "relatorio_membros.xlsx");
+  };
+
+  // 📦 Exportar para PDF (corrigido)
+  const exportarPDF = async () => {
+    if (relatorio.length === 0) return;
+
+    const { default: autoTable } = await import("jspdf-autotable");
+    const doc = new jsPDF("p", "pt");
+    doc.setFontSize(14);
+    doc.text("Relatório de Membros", 40, 40);
+
+    const colunas = ["Nome", "Gênero", "Idade", "Estado Civil", "Profissão"];
+    const linhas = relatorio.map((r) => [
+      r.nome || "",
+      r.genero || "",
+      r.idade || "",
+      r.estado_civil || "",
+      r.profissao || "",
+    ]);
+
+    autoTable(doc, {
+      head: [colunas],
+      body: linhas,
+      startY: 60,
+      styles: { fontSize: 10, cellPadding: 6 },
+      headStyles: { fillColor: [13, 71, 161] },
+    });
+
+    doc.save("relatorio_membros.pdf");
+  };
+
+  // 🌙 Tema moderno
   const theme = useMemo(
     () =>
       createTheme({
@@ -159,12 +196,12 @@ export default function RelatorioMembros() {
           mode,
           ...(mode === "light"
             ? {
-                primary: { main: "#0f52ba" },
+                primary: { main: "#0d47a1" },
                 background: { default: "#f6f9ff", paper: "#ffffff" },
                 text: { primary: "#072146" },
               }
             : {
-                primary: { main: "#8ab4f8" },
+                primary: { main: "#90caf9" },
                 background: { default: "#0b1020", paper: "#0f1724" },
                 text: { primary: "#e6eef8" },
               }),
@@ -178,6 +215,48 @@ export default function RelatorioMembros() {
     [mode]
   );
 
+  // ✅ Colunas da tabela
+  const columns = [
+    {
+      field: "foto",
+      headerName: "Foto",
+      width: 90,
+      sortable: false,
+      renderCell: (params) =>
+        params.value ? (
+          <img
+            src={params.value}
+            alt={params.row.nome}
+            style={{
+              width: 45,
+              height: 45,
+              borderRadius: "50%",
+              objectFit: "cover",
+              border: "2px solid #bbdefb",
+            }}
+          />
+        ) : (
+          <Box
+            sx={{
+              width: 45,
+              height: 45,
+              borderRadius: "50%",
+              background: "#bbdefb",
+            }}
+          />
+        ),
+    },
+    { field: "nome", headerName: "Nome", flex: 1.5, minWidth: 200 },
+    { field: "genero", headerName: "Gênero", flex: 1 },
+    { field: "idade", headerName: "Idade", flex: 0.7 },
+    { field: "estado_civil", headerName: "Estado Civil", flex: 1 },
+    { field: "profissao", headerName: "Profissão", flex: 1 },
+  ];
+
+  const filteredRelatorio = relatorio.filter((m) =>
+    m.nome?.toLowerCase().includes(search.toLowerCase())
+  );
+
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
@@ -188,17 +267,20 @@ export default function RelatorioMembros() {
           px: { xs: 2, sm: 4 },
           background:
             mode === "dark"
-              ? "radial-gradient(1200px 400px at 10% 10%, rgba(63,81,181,0.06), transparent), linear-gradient(180deg, rgba(0,0,0,0.25), transparent)"
-              : "radial-gradient(1200px 400px at 90% 20%, rgba(33,150,243,0.06), transparent), linear-gradient(180deg, rgba(255,255,255,0.6), transparent)",
+              ? "radial-gradient(1200px 400px at 10% 10%, rgba(63,81,181,0.06), transparent)"
+              : "radial-gradient(1200px 400px at 90% 20%, rgba(33,150,243,0.05), transparent)",
         }}
       >
         <Container maxWidth="xl">
-          {/* Header */}
+          {/* Cabeçalho */}
           <GradientHeader>
             <Box>
               <Fade in>
                 <Typography variant="h3" sx={{ lineHeight: 1 }}>
-                  Relatório de <Box component="span" sx={{ color: "primary.main" }}>Membros</Box>
+                  Relatório de{" "}
+                  <Box component="span" sx={{ color: "primary.main" }}>
+                    Membros
+                  </Box>
                 </Typography>
               </Fade>
               <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
@@ -224,7 +306,13 @@ export default function RelatorioMembros() {
                 startIcon={<FilterAlt />}
                 onClick={gerarRelatorio}
                 disabled={loading}
-                sx={{ textTransform: "none", px: 2.5, py: 1.1, borderRadius: 12, fontWeight: 700 }}
+                sx={{
+                  textTransform: "none",
+                  px: 2.5,
+                  py: 1.1,
+                  borderRadius: 12,
+                  fontWeight: 700,
+                }}
               >
                 {loading ? <CircularProgress size={22} sx={{ color: "#fff" }} /> : "Gerar Relatório"}
               </Button>
@@ -239,6 +327,10 @@ export default function RelatorioMembros() {
               { key: "profissoes", label: "Profissão", values: filtros.profissoes },
               { key: "idades", label: "Idade", values: filtros.idades },
               { key: "batizados", label: "Batizado", values: filtros.batizados },
+              { key: "cargos", label: "Cargo", values: filtros.cargos },
+              { key: "departamentos", label: "Departamento", values: filtros.departamentos },
+              { key: "categoriasMinisteriais", label: "Categoria Ministerial", values: filtros.categoriasMinisteriais },
+              { key: "habilitacoes", label: "Habilitações", values: filtros.habilitacoes },
             ].map(({ key, label, values }) => (
               <FormControl key={key} sx={{ minWidth: 220, mb: 2 }}>
                 <InputLabel>{label}</InputLabel>
@@ -250,7 +342,6 @@ export default function RelatorioMembros() {
                   renderValue={(selected) => selected.join(", ")}
                 >
                   {values.map((val, i) => {
-                    // Remove qualquer contagem duplicada antes de renderizar
                     const valorReal = val.replace(/\s\(\d+\smembros\)$/, "");
                     const count = val.match(/\((\d+)\smembros\)/)?.[1] || 0;
                     return (
@@ -265,7 +356,7 @@ export default function RelatorioMembros() {
             ))}
           </Stack>
 
-          {/* Filtros aplicados (chips) */}
+          {/* Chips de Filtros Ativos */}
           {Object.entries(filtroAtivo).some(([k, v]) => v.length > 0) && (
             <Stack direction="row" spacing={1} sx={{ mb: 3, flexWrap: "wrap" }}>
               {Object.entries(filtroAtivo).map(([key, valores]) =>
@@ -289,40 +380,62 @@ export default function RelatorioMembros() {
 
           {/* Resultado */}
           {relatorio.length > 0 ? (
-            <Box>
-              <Typography variant="h4" gutterBottom align="center" fontWeight="bold">
-                Resultado do Relatório
-              </Typography>
-              <Grid container spacing={4}>
-                {relatorio.map((m) => (
-                  <Grid item xs={12} sm={6} md={4} lg={3} key={m.id}>
-                    <GlassCard>
-                      {m.foto && (
-                        <CardMedia
-                          component="img"
-                          height="220"
-                          image={m.foto}
-                          alt={m.nome}
-                          sx={{ objectFit: "cover" }}
-                        />
-                      )}
-                      <CardContent>
-                        <Typography variant="h6" fontWeight="bold" gutterBottom>
-                          {m.nome}
-                        </Typography>
-                        <Stack spacing={1}>
-                          {m.profissao && <Chip label={`Profissão: ${m.profissao}`} color="primary" />}
-                          <Chip label={`Gênero: ${m.genero}`} color="secondary" />
-                          <Chip label={`Estado Civil: ${m.estado_civil}`} color="success" />
-                          {m.idade && <Chip label={`Idade: ${m.idade} anos`} />}
-                          <Chip label={`Batizado: ${m.batizadoStatus}`} color="warning" />
-                          {m.endereco_cidade && <Chip label={`Cidade: ${m.endereco_cidade}`} />}
-                        </Stack>
-                      </CardContent>
-                    </GlassCard>
-                  </Grid>
-                ))}
-              </Grid>
+            <Box sx={{ mt: 4 }}>
+              <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
+                <Typography variant="h4" fontWeight="bold">
+                  Resultado do Relatório
+                </Typography>
+                <TextField
+                  size="small"
+                  placeholder="Buscar por nome..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  InputProps={{
+                    startAdornment: <Search sx={{ mr: 1, color: "text.secondary" }} />,
+                  }}
+                />
+              </Stack>
+
+              {/* Botões de exportação */}
+              <Stack direction="row" justifyContent="flex-end" spacing={2} sx={{ mb: 2 }}>
+                <Button variant="outlined" startIcon={<Description />} onClick={exportarExcel}>
+                  Exportar Excel
+                </Button>
+                <Button variant="outlined" startIcon={<PictureAsPdf />} onClick={exportarPDF}>
+                  Exportar PDF
+                </Button>
+              </Stack>
+
+              <Box sx={{ height: "70vh", width: "100%" }}>
+                <DataGrid
+                  rows={filteredRelatorio}
+                  columns={columns}
+                  pageSize={10}
+                  rowsPerPageOptions={[10, 25, 50]}
+                  disableSelectionOnClick
+                  sx={{
+                    borderRadius: 4,
+                    boxShadow: 4,
+                    border: "none",
+                    "& .MuiDataGrid-columnHeaders": {
+                      backgroundColor:
+                        theme.palette.mode === "dark" ? "#1e293b" : "#e3f2fd",
+                      color: theme.palette.text.primary,
+                      fontWeight: 700,
+                      fontSize: 16,
+                    },
+                    "& .MuiDataGrid-row": {
+                      transition: "all 0.25s ease",
+                      "&:hover": {
+                        backgroundColor:
+                          theme.palette.mode === "dark"
+                            ? "rgba(144,202,249,0.08)"
+                            : "rgba(13,71,161,0.06)",
+                      },
+                    },
+                  }}
+                />
+              </Box>
             </Box>
           ) : (
             !loading && (

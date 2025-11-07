@@ -4,6 +4,8 @@ const sequelize = require('../config/database');
 const Sede = require("./Sede");
 const Filhal = require("./filhal");
 
+const Membro = require("./Membros");
+
 const Usuario = sequelize.define('Usuario', {
   nome: {
     type: DataTypes.STRING,
@@ -23,6 +25,13 @@ const Usuario = sequelize.define('Usuario', {
 // Relacionamentos
 Sede.hasMany(Usuario);
 Usuario.belongsTo(Sede);
+
+
+
+
+// Relacionamentos
+Membro.hasMany(Usuario);
+Usuario.belongsTo(Membro);
 
 Filhal.hasMany(Usuario);
 Usuario.belongsTo(Filhal);

@@ -84,7 +84,7 @@ export default function RelatorioPresencasPremium() {
     { name: 'Crianças', value: totais.criancas }
   ], [totais]);
 
-  const cores = ['#3f51b5', '#ff4081', '#ffa726'];
+  const cores = ['#66b2ff', '#3399FF', '#b3d9ff'];
 
   const exportarPDF = () => {
     if (!selectedTipoCulto) return;
@@ -132,16 +132,22 @@ export default function RelatorioPresencasPremium() {
       justifyContent: 'center'
     }}>
       <motion.div initial={{ opacity: 0, y: 60 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8 }} style={{ width: '100%', maxWidth: 1100 }}>
-        <Card elevation={20} sx={{ borderRadius: 5, overflow: 'hidden', backdropFilter: 'blur(10px)', backgroundColor: 'rgba(255,255,255,0.05)' }}>
-          <Box sx={{ p: 4, background: 'linear-gradient(90deg,#0f2027,#203a43,#2c5364)' }}>
-            <Typography variant="h4" fontWeight="bold" color="white" textAlign="center" sx={{ textShadow: '2px 2px 8px rgba(0,0,0,0.5)' }}>
+        <Card elevation={25} sx={{
+          borderRadius: 5,
+          overflow: 'hidden',
+          backdropFilter: 'blur(14px)',
+          backgroundColor: 'rgba(255,255,255,0.07)',
+          border: '1px solid rgba(255,255,255,0.15)'
+        }}>
+          <Box sx={{ p: 4, background: 'linear-gradient(135deg,#3399FF,#66b2ff)' }}>
+            <Typography variant="h4" fontWeight="bold" color="white" textAlign="center" sx={{ textShadow: '3px 3px 12px rgba(0,0,0,0.5)' }}>
               <MonetizationOn sx={{ mr: 1 }} /> Relatório Premium de Presenças & Contribuições
             </Typography>
           </Box>
           <CardContent>
             {/* Filtros */}
             <Box sx={{ display: 'flex', gap: 3, mb: 4, flexWrap: 'wrap', justifyContent: 'center', alignItems: 'center' }}>
-              <FormControl sx={{ minWidth: 220, background: 'rgba(255,255,255,0.1)', borderRadius: 2 }}>
+              <FormControl sx={{ minWidth: 220, background: 'rgba(255,255,255,0.1)', borderRadius: 3 }}>
                 <InputLabel sx={{ color: 'white' }}>Tipo de Culto</InputLabel>
                 <Select value={selectedTipoCulto} onChange={(e) => setSelectedTipoCulto(e.target.value)} sx={{ color: 'white' }}>
                   <MenuItem value="">-- Selecione --</MenuItem>
@@ -149,7 +155,7 @@ export default function RelatorioPresencasPremium() {
                 </Select>
               </FormControl>
 
-              <FormControl sx={{ minWidth: 160, background: 'rgba(255,255,255,0.1)', borderRadius: 2 }}>
+              <FormControl sx={{ minWidth: 160, background: 'rgba(255,255,255,0.1)', borderRadius: 3 }}>
                 <InputLabel sx={{ color: 'white' }}>Período</InputLabel>
                 <Select value={periodo} onChange={(e) => setPeriodo(e.target.value)} sx={{ color: 'white' }}>
                   <MenuItem value="hoje">Hoje</MenuItem>
@@ -162,15 +168,15 @@ export default function RelatorioPresencasPremium() {
               </FormControl>
 
               <Button variant="contained" onClick={gerarRelatorio} sx={{
-                background: 'linear-gradient(90deg,#f7971e,#ffd200)',
+                background: 'linear-gradient(90deg,#66b2ff,#3399FF)',
                 color: 'white',
                 fontWeight: 'bold',
                 px: 5,
-                py: 1.5,
+                py: 1.8,
                 borderRadius: 3,
-                boxShadow: '0 8px 20px rgba(0,0,0,0.3)',
+                boxShadow: '0 12px 25px rgba(0,0,0,0.35)',
                 transition: '0.4s',
-                '&:hover': { transform: 'scale(1.05)', boxShadow: '0 12px 30px rgba(0,0,0,0.5)' }
+                '&:hover': { transform: 'scale(1.05)', boxShadow: '0 18px 35px rgba(0,0,0,0.45)' }
               }}>
                 Gerar Relatório
               </Button>
@@ -181,11 +187,11 @@ export default function RelatorioPresencasPremium() {
                 onClick={exportarPDF}
                 disabled={!selectedTipoCulto || (!contribuicoes.length && Object.keys(totaisContribuicoes).length === 0)}
                 sx={{
-                  borderColor: '#ffd200',
-                  color: '#ffd200',
+                  borderColor: '#66b2ff',
+                  color: '#66b2ff',
                   fontWeight: 'bold',
                   px: 4,
-                  '&:hover': { background: 'rgba(255,210,0,0.1)', borderColor: '#ffcf33' }
+                  '&:hover': { background: 'rgba(102,178,255,0.15)', borderColor: '#3399FF' }
                 }}
               >
                 Exportar PDF
@@ -197,19 +203,19 @@ export default function RelatorioPresencasPremium() {
             {!loading && selectedTipoCulto && (
               <>
                 {nomeTipoCulto && (
-                  <Typography variant="h5" fontWeight="bold" textAlign="center" mb={4} color="#ffd200" sx={{ textShadow: '2px 2px 6px rgba(0,0,0,0.4)' }}>
+                  <Typography variant="h5" fontWeight="bold" textAlign="center" mb={4} color="#b3d9ff" sx={{ textShadow: '2px 2px 8px rgba(0,0,0,0.4)' }}>
                     Tipo de Culto: {nomeTipoCulto}
                   </Typography>
                 )}
 
                 {/* Resumo Presenças */}
-                <motion.div whileHover={{ scale: 1.03 }} transition={{ type: 'spring', stiffness: 300 }}>
-                  <Box sx={{ mb: 4, p: 4, background: 'rgba(255,255,255,0.1)', borderRadius: 5, boxShadow: '0 16px 40px rgba(0,0,0,0.25)' }}>
+                <motion.div whileHover={{ scale: 1.02 }} transition={{ type: 'spring', stiffness: 300 }}>
+                  <Box sx={{ mb: 4, p: 4, background: 'rgba(255,255,255,0.07)', borderRadius: 5, boxShadow: '0 18px 40px rgba(0,0,0,0.25)' }}>
                     <Typography variant="h5" fontWeight="bold" textAlign="center" mb={3} color="#fff">
                       <CalendarToday sx={{ mr: 1 }} /> Resumo Estatístico
                     </Typography>
                     {dataCulto && <Typography variant="body1" textAlign="center" mb={3} color="#fff">Data do Culto: {dataCulto}</Typography>}
-                    <Divider sx={{ mb: 3, backgroundColor: '#ffd200' }} />
+                    <Divider sx={{ mb: 3, backgroundColor: '#66b2ff' }} />
                     <Stack direction="row" spacing={2} justifyContent="space-around" flexWrap="wrap">
                       <Chip icon={<Group />} label={`Total: ${totais.totalPresentes}`} color="primary" variant="filled" sx={{ fontWeight: 'bold', px:2 }}/>
                       <Chip icon={<Person />} label={`Homens: ${totais.homens}`} color="info" variant="filled" sx={{ fontWeight: 'bold', px:2 }}/>
@@ -221,8 +227,8 @@ export default function RelatorioPresencasPremium() {
                 </motion.div>
 
                 {/* Gráfico Pizza */}
-                <motion.div whileHover={{ scale: 1.03 }} transition={{ type: 'spring', stiffness: 300 }}>
-                  <Box sx={{ height: 420, background: 'rgba(255,255,255,0.1)', borderRadius: 5, p: 3, boxShadow: '0 16px 40px rgba(0,0,0,0.25)', mb: 4 }}>
+                <motion.div whileHover={{ scale: 1.02 }} transition={{ type: 'spring', stiffness: 300 }}>
+                  <Box sx={{ height: 420, background: 'rgba(255,255,255,0.07)', borderRadius: 5, p: 3, boxShadow: '0 18px 40px rgba(0,0,0,0.25)', mb: 4 }}>
                     <Typography variant="h6" textAlign="center" mb={2} fontWeight="bold" color="#fff">
                       Distribuição por Categoria
                     </Typography>
@@ -239,9 +245,9 @@ export default function RelatorioPresencasPremium() {
                 </motion.div>
 
                 {/* Contribuições */}
-                <motion.div whileHover={{ scale: 1.03 }} transition={{ type: 'spring', stiffness: 300 }}>
-                  <Box sx={{ mb: 4, p: 4, background: 'rgba(255,255,255,0.1)', borderRadius: 5, boxShadow: '0 16px 40px rgba(0,0,0,0.25)' }}>
-                    <Typography variant="h5" fontWeight="bold" textAlign="center" mb={3} color="#ffd200">
+                <motion.div whileHover={{ scale: 1.02 }} transition={{ type: 'spring', stiffness: 300 }}>
+                  <Box sx={{ mb: 4, p: 4, background: 'rgba(255,255,255,0.07)', borderRadius: 5, boxShadow: '0 18px 40px rgba(0,0,0,0.25)' }}>
+                    <Typography variant="h5" fontWeight="bold" textAlign="center" mb={3} color="#66b2ff">
                       <MonetizationOn sx={{ mr: 1 }} /> Contribuições
                     </Typography>
 
@@ -249,7 +255,7 @@ export default function RelatorioPresencasPremium() {
                       <>
                         <Stack direction="row" spacing={2} justifyContent="space-around" flexWrap="wrap" mb={3}>
                           {Object.entries(totaisContribuicoes).map(([tipo, valor]) => (
-                            <Chip key={tipo} label={`${tipo}: Kz ${valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} color="secondary" variant="filled" sx={{ fontWeight:'bold', px:2, '&:hover': { transform:'scale(1.1)', boxShadow:'0 6px 15px rgba(0,0,0,0.3)' } }} />
+                            <Chip key={tipo} label={`${tipo}: Kz ${valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} color="secondary" variant="filled" sx={{ fontWeight:'bold', px:2, '&:hover': { transform:'scale(1.1)', boxShadow:'0 6px 18px rgba(0,0,0,0.35)' } }} />
                           ))}
                         </Stack>
                         <Typography variant="subtitle1" fontWeight="bold" textAlign="center" mb={3} color="#fff">
@@ -260,13 +266,13 @@ export default function RelatorioPresencasPremium() {
 
                     {contribuicoes.length > 0 && (
                       <Table sx={{ borderRadius: 3, overflow: 'hidden', background: 'rgba(255,255,255,0.05)' }}>
-                        <TableHead sx={{ background: 'linear-gradient(90deg,#1e3c72,#2a5298)' }}>
+                        <TableHead sx={{ background: 'linear-gradient(135deg,#3399FF,#66b2ff)' }}>
                           <TableRow>
-                            <TableCell sx={{ color: '#ffd200', fontWeight: 'bold' }}>Data</TableCell>
-                            <TableCell sx={{ color: '#ffd200', fontWeight: 'bold' }}>Membro</TableCell>
-                            <TableCell sx={{ color: '#ffd200', fontWeight: 'bold' }}>Tipo</TableCell>
-                            <TableCell sx={{ color: '#ffd200', fontWeight: 'bold' }}>Valor (Kz)</TableCell>
-                            <TableCell sx={{ color: '#ffd200', fontWeight: 'bold' }}>Descrição</TableCell>
+                            <TableCell sx={{ color: '#fff', fontWeight: 'bold' }}>Data</TableCell>
+                            <TableCell sx={{ color: '#fff', fontWeight: 'bold' }}>Membro</TableCell>
+                            <TableCell sx={{ color: '#fff', fontWeight: 'bold' }}>Tipo</TableCell>
+                            <TableCell sx={{ color: '#fff', fontWeight: 'bold' }}>Valor (Kz)</TableCell>
+                            <TableCell sx={{ color: '#fff', fontWeight: 'bold' }}>Descrição</TableCell>
                           </TableRow>
                         </TableHead>
                         <TableBody>
@@ -275,7 +281,7 @@ export default function RelatorioPresencasPremium() {
                               <TableCell>{dayjs(c.data).format('DD/MM/YYYY')}</TableCell>
                               <TableCell>
                                 <Stack direction="row" spacing={1} alignItems="center">
-                                  <Avatar sx={{ bgcolor: '#1e3c72' }}>{c.Membro?.nome?.charAt(0)}</Avatar>
+                                  <Avatar sx={{ bgcolor: '#3399FF' }}>{c.Membro?.nome?.charAt(0)}</Avatar>
                                   <Typography>{c.Membro?.nome || '-'}</Typography>
                                 </Stack>
                               </TableCell>
