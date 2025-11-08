@@ -538,12 +538,157 @@ export default function GestaoCultos() {
             </DialogActions>
           </Dialog>
 
-          {/* Snackbar */}
-          <Snackbar open={snackbar.open} autoHideDuration={4200} onClose={closeSnack} anchorOrigin={{ vertical: "bottom", horizontal: "center" }}>
-            <Alert onClose={closeSnack} severity={snackbar.severity} sx={{ width: "100%" }}>
-              {snackbar.message}
-            </Alert>
-          </Snackbar>
+        {/* Modal de Sucesso Moderno */}
+<Dialog
+  open={snackbar.open}
+  onClose={closeSnack}
+  maxWidth="xs"
+  fullWidth
+  TransitionComponent={Slide}
+  TransitionProps={{ direction: "up" }}
+  PaperProps={{
+    sx: {
+      borderRadius: 4,
+      backdropFilter: "blur(16px)",
+      backgroundColor: "rgba(255, 255, 255, 0.85)",
+      color: "#1a1a1a",
+      boxShadow: "0 8px 40px rgba(0,0,0,0.25)",
+      textAlign: "center",
+      overflow: "hidden",
+      p: 4,
+    },
+  }}
+>
+  <Box
+    component={motion.div}
+    initial={{ opacity: 0, scale: 0.9, y: 30 }}
+    animate={{ opacity: 1, scale: 1, y: 0 }}
+    transition={{ duration: 0.45, ease: "easeOut" }}
+    sx={{
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 2.5,
+      position: "relative",
+    }}
+  >
+    {/* Aura suave atrás do ícone */}
+    <Box
+      component={motion.div}
+      initial={{ scale: 0, opacity: 0 }}
+      animate={{ scale: 1.4, opacity: 0.15 }}
+      transition={{ duration: 0.8 }}
+      sx={{
+        position: "absolute",
+        width: 140,
+        height: 140,
+        borderRadius: "50%",
+        background:
+          snackbar.severity === "success"
+            ? "#4caf50"
+            : snackbar.severity === "error"
+            ? "#f44336"
+            : "#2196f3",
+        filter: "blur(30px)",
+      }}
+    />
+
+    {/* Ícone */}
+    <Box
+      component={motion.div}
+      initial={{ scale: 0 }}
+      animate={{ scale: 1 }}
+      transition={{ type: "spring", stiffness: 260, damping: 18 }}
+      sx={{
+        width: 80,
+        height: 80,
+        borderRadius: "50%",
+        background:
+          snackbar.severity === "success"
+            ? "#4caf50"
+            : snackbar.severity === "error"
+            ? "#f44336"
+            : "#2196f3",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        boxShadow: "0 0 20px rgba(0,0,0,0.1)",
+      }}
+    >
+      {snackbar.severity === "success" ? (
+        <motion.svg
+          width="44"
+          height="44"
+          viewBox="0 0 24 24"
+          fill="none"
+          animate={{ rotate: 360 }}
+          transition={{ duration: 1.2 }}
+        >
+          <path
+            d="M9 12.5L11 14.5L15 10.5"
+            stroke="#fff"
+            strokeWidth="2.4"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </motion.svg>
+      ) : (
+        <svg width="44" height="44" viewBox="0 0 24 24" fill="none">
+          <path
+            d="M15 9L9 15M9 9L15 15"
+            stroke="#fff"
+            strokeWidth="2.4"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      )}
+    </Box>
+
+    {/* Título e Mensagem */}
+    <Typography variant="h6" sx={{ fontWeight: 700, mt: 1 }}>
+      {snackbar.severity === "success" ? "Sucesso!" : "Algo deu errado"}
+    </Typography>
+
+    <Typography variant="body1" sx={{ opacity: 0.8, maxWidth: 360 }}>
+      {snackbar.message}
+    </Typography>
+
+    {/* Botão Fechar */}
+    <Button
+      onClick={closeSnack}
+      variant="contained"
+      sx={{
+        mt: 2,
+        borderRadius: 3,
+        px: 4,
+        py: 1.2,
+        fontWeight: 600,
+        textTransform: "none",
+        background:
+          snackbar.severity === "success"
+            ? "#4caf50"
+            : snackbar.severity === "error"
+            ? "#f44336"
+            : "#2196f3",
+        "&:hover": {
+          background:
+            snackbar.severity === "success"
+              ? "#43a047"
+              : snackbar.severity === "error"
+              ? "#e53935"
+              : "#1976d2",
+        },
+        color: "#fff",
+        boxShadow: "0 4px 14px rgba(0,0,0,0.2)",
+      }}
+    >
+      Fechar
+    </Button>
+  </Box>
+</Dialog>
+
         </Container>
       </Box>
     </ThemeProvider>

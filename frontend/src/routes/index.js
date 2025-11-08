@@ -19,10 +19,7 @@ import RelatorioFinanceiroGeral from '../pages/Relatrios/RelatorioFinanceiroGera
 import RelatorioMembros from '../pages/Relatrios/RelatorioMembros';
 import RelatorioDespesa from '../pages/Relatrios/RelatorioDespesa';
 import RelatorioPresencas from '../pages/Relatrios/ReltorioPresencas';
-import RelatorioEstatistico from '../pages/Relatrios/RelatorioEstatistico';
 import RelatorioSede from '../pages/Relatrios/RelatorioSede';
-import RelatorioCentros from '../pages/Relatrios/RelatorioCentros';
-import RelatorioCongregacoes from '../pages/Relatrios/RelatorioCongregacao';
 import GestaoIgrejas from '../pages/GestaoIgrejas';
 import ListaCultos from '../pages/Cultos/ListaCultos';
 import GestaoDepartamento from '../pages/GestaoDepartamentos';
@@ -42,9 +39,7 @@ import Atendimento from '../components/FormAtendimento'; // <-- nova página
 import GestaoAtendimento from '../components/TabelaAtendimento'; // <-- rota pública
 import GestaoCompromisso from '../components/TabelaCompromisso'; // <-- rota pública
 
-
 import FormComprimisso from '../components/FormCompromisso'; // <-- rota pública
-
 
 // Dashboard agora é público
 import Dashboard from '../pages/Dashboard';
@@ -131,9 +126,8 @@ export default function AppRoutes() {
         {/* Nova Rota Pública para o Dashboard de Eventos */}
         <Route path="/dasheventos" element={<EventosDashboard />} /> {/* Nova Rota Pública */}
 
-        
-        {/* Nova Rota Pública para o Dashboard de Eventos */}
-        <Route path="/formcomprimissos" element={< FormComprimisso />} /> {/* Nova Rota Pública */}
+        {/* Nova Rota Pública para o Formulário de Compromissos */}
+        <Route path="/formcomprimissos" element={<FormComprimisso />} /> {/* Nova Rota Pública */}
         
         {/* Rotas protegidas (usuários autenticados) */}
         <Route element={<AuthWrapper><Outlet /></AuthWrapper>}>
@@ -150,12 +144,9 @@ export default function AppRoutes() {
           <Route path="/gestao/relatorioMembros" element={<RelatorioMembros />} />
           <Route path="/listaCultos" element={<ListaCultos />} />
           <Route path="/gestao/RelatorioPresencas" element={<RelatorioPresencas />} />
-          <Route path="/gestao/relatorioEstatistico" element={<RelatorioEstatistico />} />
           <Route path="/gestao/relatorioSede" element={<RelatorioSede />} />
-          <Route path="/gestao/relatorioCentros" element={<RelatorioCentros />} />
           <Route path="/gestao/departamentos" element={<GestaoDepartamento />} />
           <Route path="/gestao/gestaoigrejas" element={<GestaoIgrejas />} />
-          <Route path="/gestao/relatorioCongregacao" element={<RelatorioCongregacoes />} />
           <Route path="/perfil" element={<Perfil />} />
         </Route>
 

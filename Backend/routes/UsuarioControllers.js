@@ -4,6 +4,9 @@ const bcrypt = require("bcrypt")
 
 const Usuarios = require("../modells/Usuarios")
 
+
+const NotificacaoLocal = require("../modells/NotificacaoLocal");
+
 const Membros = require("../modells/Membros");
 const DadosCristaos = require("../modells/DadosCristaos");
 
@@ -2446,7 +2449,7 @@ router.delete('/contribuicoes/:id', auth, async (req, res) => {
 
 
 
-
+const {literal } = require('sequelize');
 
 // Relatório financeiro filtrado por usuário (Sede/Filhal)
 router.get('/financeiro', auth, async (req, res) => {
@@ -2456,12 +2459,7 @@ router.get('/financeiro', auth, async (req, res) => {
     const { SedeId, FilhalId } = req.usuario;
 
     // Filtro hierárquico
-    let filtroHierarquia = {};
-    if (FilhalId) {
-      filtroHierarquia.FilhalId = FilhalId;
-    } else if (SedeId) {
-      filtroHierarquia.SedeId = SedeId;
-    }
+    const filtroHierarquia = FilhalId ? { FilhalId } : { SedeId };
 
     // Filtros de período
     const wherePeriodoContribuicao = { ...filtroHierarquia };
@@ -2473,34 +2471,36 @@ router.get('/financeiro', auth, async (req, res) => {
     }
 
     // Totais gerais
-    const totalArrecadado = await Contribuicao.sum('valor', { where: wherePeriodoContribuicao }) || 0;
-    const totalGasto = await Despesa.sum('valor', { where: wherePeriodoDespesa }) || 0;
+    const totalArrecadado =
+      (await Contribuicao.sum('valor', { where: wherePeriodoContribuicao })) || 0;
+    const totalGasto =
+      (await Despesa.sum('valor', { where: wherePeriodoDespesa })) || 0;
     const saldo = totalArrecadado - totalGasto;
 
     // ---- AGRUPAMENTO POR DIA ----
     // Contribuições agrupadas
     const entradasPorDia = await Contribuicao.findAll({
       attributes: [
-        [fn('DATE', col('data')), 'data'],
-        [fn('SUM', col('valor')), 'entrada']
+        [fn('DATE_FORMAT', col('data'), '%Y-%m-%d'), 'data'],
+        [fn('SUM', col('valor')), 'entrada'],
       ],
       where: wherePeriodoContribuicao,
-      group: [fn('DATE', col('data'))],
+      group: [literal("DATE_FORMAT(data, '%Y-%m-%d')")],
       raw: true,
     });
 
     // Despesas agrupadas
     const saidasPorDia = await Despesa.findAll({
       attributes: [
-        [fn('DATE', col('data')), 'data'],
-        [fn('SUM', col('valor')), 'saida']
+        [fn('DATE_FORMAT', col('data'), '%Y-%m-%d'), 'data'],
+        [fn('SUM', col('valor')), 'saida'],
       ],
       where: wherePeriodoDespesa,
-      group: [fn('DATE', col('data'))],
+      group: [literal("DATE_FORMAT(data, '%Y-%m-%d')")],
       raw: true,
     });
 
-    // Combina os dois arrays em um único objeto por data
+    // Combinar as duas listas
     const mapa = {};
 
     entradasPorDia.forEach(e => {
@@ -2521,14 +2521,13 @@ router.get('/financeiro', auth, async (req, res) => {
       totalArrecadado,
       totalGasto,
       saldo,
-      grafico, // <-- array [{data:'YYYY-MM-DD', entrada:123, saida:45}, ...]
+      grafico,
     });
   } catch (error) {
     console.error('Erro ao gerar relatório financeiro:', error);
     return res.status(500).json({ message: 'Erro ao gerar relatório financeiro' });
   }
 });
-
 
 
 
@@ -3468,8 +3467,8 @@ router.get('/dashboard', auth, async (req, res) => {
     // 4️⃣ DESPESAS (MÊS)
     // -----------------------------
     const totalDespesasMes = (await Despesa.sum("valor", {
-      where: { ...filtroHierarquia, data: { [Op.between]: [inicioMes, fimMes] } },
-    })) || 0;
+  where: { ...filtroHierarquia }
+})) || 0;
 
     const saldoFinanceiro = totalContribuicoesMes - totalDespesasMes;
 
@@ -5308,14 +5307,20 @@ router.delete('/membros/:id', auth, async (req, res) => {
 
 
 
-router.get("/eventos", async (req, res) => {
+
+
+
+router.get("/eventos", auth, async (req, res) => {
   try {
     const hoje = new Date();
-    hoje.setHours(0, 0, 0, 0); // Normaliza a data para comparação sem horário
-    const diasAntes = 7; // Quantos dias antes gerar alerta
+    hoje.setHours(0, 0, 0, 0);
+    const diasAntes = 7;
 
     const notificacoesGeradas = [];
     const notificacoesRemovidas = [];
+
+    const { SedeId, FilhalId } = req.usuario; // ✅ Pegando da autenticação
+    console.log("🏢 Usuário logado:", { SedeId, FilhalId });
 
     // ---------------------------
     // 🔹 Processar Atendimentos
@@ -5367,6 +5372,13 @@ router.get("/eventos", async (req, res) => {
           mensagem: msg,
           data_enviada: new Date(),
           Descricao: observacao,
+        });
+
+        // ✅ Cria vínculo na NotificacaoLocal
+        await NotificacaoLocal.create({
+          NotificacaoId: notif.id,
+          SedeId: SedeId || null,
+          FilhalId: FilhalId || null,
         });
       }
 
@@ -5425,6 +5437,13 @@ router.get("/eventos", async (req, res) => {
           data_enviada: new Date(),
           Descricao: observacao,
         });
+
+        // ✅ Cria vínculo na NotificacaoLocal
+        await NotificacaoLocal.create({
+          NotificacaoId: notif.id,
+          SedeId: SedeId || null,
+          FilhalId: FilhalId || null,
+        });
       }
 
       const notifCompleta = await Notificacao.findByPk(notif.id, {
@@ -5446,7 +5465,6 @@ router.get("/eventos", async (req, res) => {
 
     const cultosComTipo = await Promise.all(
       cultos.map(async (culto) => {
-        // Verificar e incluir o tipo de culto
         const tipoCulto = await TipoCulto.findByPk(culto.TipoCultoId);
         return { ...culto.toJSON(), TipoCulto: tipoCulto };
       })
@@ -5459,12 +5477,10 @@ router.get("/eventos", async (req, res) => {
       const diffDias = Math.round((dataCulto - hoje) / (1000 * 60 * 60 * 24));
 
       let msg = null;
-      const nomeResponsavel = culto.responsavel || "Responsável não informado";
 
-      // Verificação dos campos necessários para culto
       if (!culto.responsavel || !culto.observacoes || !culto.local) {
         console.log(`Culto ${culto.id} não possui informações suficientes. A notificação não será criada.`);
-        continue; // Se algum campo não for preenchido, a notificação não será gerada.
+        continue;
       }
 
       if (diffDias === 0) {
@@ -5487,7 +5503,6 @@ router.get("/eventos", async (req, res) => {
 
       if (!msg) continue;
 
-      // Incluindo o tipo do culto na descrição
       const tipoCultoDescricao = culto.TipoCulto ? culto.TipoCulto.nome : "Tipo de culto não informado";
       const observacao = `Responsável: ${culto.responsavel} | Local: ${culto.local} | Observações: ${culto.observacoes} | Tipo de culto: ${tipoCultoDescricao}`;
 
@@ -5501,6 +5516,13 @@ router.get("/eventos", async (req, res) => {
           mensagem: msg,
           data_enviada: new Date(),
           Descricao: observacao,
+        });
+
+        // ✅ Cria vínculo na NotificacaoLocal
+        await NotificacaoLocal.create({
+          NotificacaoId: notif.id,
+          SedeId: SedeId || null,
+          FilhalId: FilhalId || null,
         });
       }
 
@@ -5528,19 +5550,59 @@ router.get("/eventos", async (req, res) => {
 
 
 
-// 🔹 Rota para listar todas as notificações
-router.get("/notificacoes", async (req, res) => {
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// 🔹 Rota para listar notificações do usuário logado (filtradas por Sede e/ou Filhal)
+router.get("/notificacoes", auth, async (req, res) => {
   try {
+    const { SedeId, FilhalId } = req.usuario; // ✅ Pegando do token (usuário logado)
+    console.log("🏢 Usuário logado:", { SedeId, FilhalId });
+
+    if (!SedeId && !FilhalId) {
+      return res.status(400).json({ message: "Usuário não está vinculado a uma sede ou filial." });
+    }
+
+    // 🔍 Busca todas as NotificacaoLocal com vínculo à sede ou filial do usuário
+    const filtroLocal = {};
+    if (FilhalId) filtroLocal.FilhalId = FilhalId;
+    else if (SedeId) filtroLocal.SedeId = SedeId;
+
+    const notificacoesLocais = await NotificacaoLocal.findAll({
+      where: filtroLocal,
+      attributes: ["NotificacaoId"],
+    });
+
+    const idsNotificacoes = notificacoesLocais.map((n) => n.NotificacaoId);
+
+    if (idsNotificacoes.length === 0) {
+      return res.json([]); // ✅ Nenhuma notificação para o contexto do usuário
+    }
+
+    // 🔹 Busca as notificações correspondentes, com os relacionamentos
     const notificacoes = await Notificacao.findAll({
-      order: [["data_enviada", "DESC"]], // Ordena da mais recente para a mais antiga
+      where: { id: idsNotificacoes },
+      order: [["data_enviada", "DESC"]],
       include: [
-        { model: Membros, attributes: ["id", "nome", "foto"] }, // Informação do membro
-        { model: Atendimento, attributes: ["id", "data_hora"] }, // Se for notificação de atendimento
-        { model: AgendaPastoral, attributes: ["id", "data_hora", "responsavel"] }, // Se for agendamento pastoral
-        { model: Cultos, attributes: ["id", "dataHora", "local", "responsavel", "observacoes"] }, // Se for culto
+        { model: Membros, attributes: ["id", "nome", "foto"] },
+        { model: Atendimento, attributes: ["id", "data_hora"] },
+        { model: AgendaPastoral, attributes: ["id", "data_hora", "responsavel"] },
+        { model: Cultos, attributes: ["id", "dataHora", "local", "responsavel", "observacoes"] },
       ],
     });
 
+    console.log(`✅ ${notificacoes.length} notificações encontradas.`);
     res.json(notificacoes);
   } catch (error) {
     console.error("❌ Erro ao buscar notificações:", error);
@@ -5555,155 +5617,177 @@ router.get("/notificacoes", async (req, res) => {
 
 
 
-router.get("/aniversarios", async (req, res) => {
-try {
-const hoje = new Date();
-const diasAntes = 7; // até 7 dias antes
-const diasDepois = 3; // até 3 dias depois (remover após isso)
-
-
-const membros = await Membros.findAll({
-  where: { ativo: true },
-  attributes: ["id", "nome", "foto", "data_nascimento"],
-});
-
-const notificacoesGeradas = [];
-const notificacoesRemovidas = [];
-
-for (const membro of membros) {
-  if (!membro.data_nascimento) continue;
-
-  const dataNasc = new Date(membro.data_nascimento);
-
-  // 🔹 Zera horas para evitar arredondamentos errados
-  const hojeSemHora = new Date(
-    hoje.getFullYear(),
-    hoje.getMonth(),
-    hoje.getDate()
-  );
-  const anivEsteAno = new Date(
-    hoje.getFullYear(),
-    dataNasc.getMonth(),
-    dataNasc.getDate()
-  );
-
-  // 🔹 Calcula diferença em dias (positivo = futuro, negativo = passado)
-  const diffDias = Math.floor(
-    (anivEsteAno - hojeSemHora) / (1000 * 60 * 60 * 24)
-  );
-
-  // 🔹 Busca notificação existente deste ano
-  const inicioAno = new Date(hoje.getFullYear(), 0, 1);
-  const notificacaoExistente = await Notificacao.findOne({
-    where: {
-      MembroId: membro.id,
-      tipo: "aniversario",
-      data_enviada: { [Op.gte]: inicioAno },
-    },
-  });
-
-  // 🔹 Se já passou mais que 3 dias → remove a notificação e pula
-  if (diffDias < -diasDepois) {
-    if (notificacaoExistente) {
-      await notificacaoExistente.destroy();
-      notificacoesRemovidas.push(membro.nome);
-    }
-    continue;
-  }
-
-  // 🔹 Monta mensagem apenas se estiver dentro do intervalo de interesse
-  let msg = null;
-  if (diffDias === 0) {
-    msg = `🎉 Hoje é o aniversário de ${membro.nome}! 🥳`;
-  } else if (diffDias > 0 && diffDias <= diasAntes) {
-    msg = `🎂 Faltam ${diffDias} dia(s) para o aniversário de ${membro.nome}!`;
-  } else if (diffDias < 0 && Math.abs(diffDias) <= diasDepois) {
-    msg = `🍰 O aniversário de ${membro.nome} foi há ${Math.abs(diffDias)} dia(s)!`;
-  }
-
-  // 🔹 Se não há mensagem, pula (fora da janela)
-  if (!msg) continue;
-
-  // 🔹 Atualiza ou cria nova notificação
-  if (notificacaoExistente) {
-    notificacaoExistente.mensagem = msg;
-    notificacaoExistente.data_enviada = new Date();
-    await notificacaoExistente.save();
-    notificacoesGeradas.push(notificacaoExistente);
-  } else {
-    const novaNotif = await Notificacao.create({
-      MembroId: membro.id,
-      tipo: "aniversario",
-      mensagem: msg,
-      data_enviada: new Date(),
-    });
-    notificacoesGeradas.push(novaNotif);
-  }
-}
-
-// 🔹 Buscar todas notificações atuais (deste ano)
-const todasNotificacoes = await Notificacao.findAll({
-  where: {
-    tipo: "aniversario",
-    createdAt: { [Op.gte]: new Date(hoje.getFullYear(), 0, 1) },
-  },
-  include: {
-    model: Membros,
-    attributes: ["id", "nome", "foto", "data_nascimento"],
-  },
-  order: [["createdAt", "DESC"]],
-});
-
-// 🔹 Adiciona URL completa da foto
-const notificacoesComFoto = todasNotificacoes.map((notif) => ({
-  ...notif.dataValues,
-  Membro: notif.Membro
-    ? {
-        ...notif.Membro.dataValues,
-        foto: notif.Membro.foto
-          ? `${req.protocol}://${req.get("host")}${notif.Membro.foto}`
-          : null,
-      }
-    : null,
-}));
-
-console.log("✅ Notificações criadas/atualizadas:", notificacoesGeradas.length);
-console.log("🗑️ Notificações removidas:", notificacoesRemovidas.length);
-
-res.json({
-  message: "Notificações de aniversário verificadas, atualizadas e limpas.",
-  criadasOuAtualizadas: notificacoesGeradas.length,
-  removidas: notificacoesRemovidas,
-  todasNotificacoes: notificacoesComFoto,
-});
-
-
-} catch (error) {
-console.error("❌ Erro ao verificar aniversários:", error);
-res.status(500).json({ message: "Erro interno ao verificar aniversários." });
-}
-});
 
 
 
 
 
-
-router.get("/contador", async (req, res) => {
+// 🔹 Gera notificações de aniversários (com sede e filhal do usuário logado)
+router.get("/aniversarios", auth, async (req, res) => {
   try {
-    
+    const hoje = new Date();
+    const diasAntes = 7;
+    const diasDepois = 3;
 
-    const total = await Notificacao.count();
- console.log(total)
-    res.json({ total });
-   
+    const { SedeId, FilhalId } = req.usuario; // ✅ pegamos do token JWT (usuário logado)
+    console.log("🏢 Usuário logado:", { SedeId, FilhalId });
+
+    const membros = await Membros.findAll({
+      where: { ativo: true },
+      attributes: ["id", "nome", "foto", "data_nascimento"],
+    });
+
+    const notificacoesGeradas = [];
+    const notificacoesRemovidas = [];
+
+    for (const membro of membros) {
+      if (!membro.data_nascimento) continue;
+
+      const dataNasc = new Date(membro.data_nascimento);
+      const hojeSemHora = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
+      const anivEsteAno = new Date(hoje.getFullYear(), dataNasc.getMonth(), dataNasc.getDate());
+      const diffDias = Math.floor((anivEsteAno - hojeSemHora) / (1000 * 60 * 60 * 24));
+
+      const inicioAno = new Date(hoje.getFullYear(), 0, 1);
+      const notificacaoExistente = await Notificacao.findOne({
+        where: {
+          MembroId: membro.id,
+          tipo: "aniversario",
+          data_enviada: { [Op.gte]: inicioAno },
+        },
+      });
+
+      // 🔸 Remove notificações antigas (mais de 3 dias após)
+      if (diffDias < -diasDepois) {
+        if (notificacaoExistente) {
+          await notificacaoExistente.destroy();
+          notificacoesRemovidas.push(membro.nome);
+        }
+        continue;
+      }
+
+      // 🔸 Define a mensagem conforme o tempo
+      let msg = null;
+      if (diffDias === 0) {
+        msg = `🎉 Hoje é o aniversário de ${membro.nome}! 🥳`;
+      } else if (diffDias > 0 && diffDias <= diasAntes) {
+        msg = `🎂 Faltam ${diffDias} dia(s) para o aniversário de ${membro.nome}!`;
+      } else if (diffDias < 0 && Math.abs(diffDias) <= diasDepois) {
+        msg = `🍰 O aniversário de ${membro.nome} foi há ${Math.abs(diffDias)} dia(s)!`;
+      }
+
+      if (!msg) continue;
+
+      let novaNotif = null;
+
+      if (notificacaoExistente) {
+        notificacaoExistente.mensagem = msg;
+        notificacaoExistente.data_enviada = new Date();
+        await notificacaoExistente.save();
+        novaNotif = notificacaoExistente;
+      } else {
+        novaNotif = await Notificacao.create({
+          MembroId: membro.id,
+          tipo: "aniversario",
+          mensagem: msg,
+          data_enviada: new Date(),
+        });
+
+        // ✅ Cria o vínculo em NotificacaoLocal com base no usuário logado
+        await NotificacaoLocal.create({
+          NotificacaoId: novaNotif.id,
+          SedeId: SedeId || null,
+          FilhalId: FilhalId || null,
+        });
+      }
+
+      notificacoesGeradas.push(novaNotif);
+    }
+
+    const todasNotificacoes = await Notificacao.findAll({
+      where: {
+        tipo: "aniversario",
+        createdAt: { [Op.gte]: new Date(hoje.getFullYear(), 0, 1) },
+      },
+      include: {
+        model: Membros,
+        attributes: ["id", "nome", "foto", "data_nascimento"],
+      },
+      order: [["createdAt", "DESC"]],
+    });
+
+    const notificacoesComFoto = todasNotificacoes.map((notif) => ({
+      ...notif.dataValues,
+      Membro: notif.Membro
+        ? {
+            ...notif.Membro.dataValues,
+            foto: notif.Membro.foto
+              ? `${req.protocol}://${req.get("host")}${notif.Membro.foto}`
+              : null,
+          }
+        : null,
+    }));
+
+    console.log("✅ Notificações criadas/atualizadas:", notificacoesGeradas.length);
+    console.log("🗑️ Notificações removidas:", notificacoesRemovidas.length);
+
+    res.json({
+      message: "Notificações de aniversário verificadas, atualizadas e limpas.",
+      criadasOuAtualizadas: notificacoesGeradas.length,
+      removidas: notificacoesRemovidas,
+      todasNotificacoes: notificacoesComFoto,
+    });
+
   } catch (error) {
-    console.error("Erro ao contar notificações:", error);
+    console.error("❌ Erro ao verificar aniversários:", error);
+    res.status(500).json({ message: "Erro interno ao verificar aniversários." });
+  }
+});
+
+
+
+
+
+// 🔹 Rota para contar notificações filtradas por Sede ou Filhal do usuário logado
+router.get("/contador", auth, async (req, res) => {
+  try {
+    const { SedeId, FilhalId } = req.usuario; // ✅ Pega os dados do usuário autenticado
+    console.log("🏢 Usuário logado:", { SedeId, FilhalId });
+
+    if (!SedeId && !FilhalId) {
+      return res.status(400).json({ message: "Usuário não está vinculado a uma sede ou filial." });
+    }
+
+    // 🔍 Monta o filtro correto: se tiver Filhal, usa FilhalId; senão, usa SedeId
+    const filtroLocal = {};
+    if (FilhalId) filtroLocal.FilhalId = FilhalId;
+    else if (SedeId) filtroLocal.SedeId = SedeId;
+
+    // 🔹 Busca apenas os IDs de notificações vinculados à sede ou filial
+    const notificacoesLocais = await NotificacaoLocal.findAll({
+      where: filtroLocal,
+      attributes: ["NotificacaoId"],
+    });
+
+    const idsNotificacoes = notificacoesLocais.map((n) => n.NotificacaoId);
+
+    // 🔸 Caso não haja notificações locais vinculadas
+    if (idsNotificacoes.length === 0) {
+      return res.json({ total: 0 });
+    }
+
+    // 🔹 Conta apenas as notificações que pertencem à sede/filial do usuário
+    const total = await Notificacao.count({
+      where: { id: idsNotificacoes },
+    });
+
+    console.log(`📊 Total de notificações (filtradas): ${total}`);
+    res.json({ total });
+  } catch (error) {
+    console.error("❌ Erro ao contar notificações:", error);
     res.status(500).json({ message: "Erro interno ao contar notificações." });
   }
 });
-
-
 
 
 

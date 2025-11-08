@@ -20,8 +20,8 @@ import dayjs from 'dayjs';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import {
-  LineChart,
-  Line,
+  BarChart,
+  Bar,
   CartesianGrid,
   XAxis,
   YAxis,
@@ -38,10 +38,8 @@ export default function RelatorioFinanceiroGeral() {
     totalArrecadado: 0,
     totalGasto: 0,
     saldo: 0,
-    grafico: [],
   });
 
-  // calcula o range de datas conforme período selecionado
   const calcularPeriodo = (p) => {
     const agora = dayjs();
     let inicio;
@@ -61,7 +59,6 @@ export default function RelatorioFinanceiroGeral() {
     setLoading(true);
     try {
       const { start, end } = calcularPeriodo(periodo);
-      // Certifique-se que sua rota no backend retorne { totalArrecadado, totalGasto, saldo, grafico }
       const res = await api.get('/financeiro', {
         params: { startDate: start, endDate: end },
       });
@@ -70,7 +67,6 @@ export default function RelatorioFinanceiroGeral() {
         totalArrecadado: res.data.totalArrecadado || 0,
         totalGasto: res.data.totalGasto || 0,
         saldo: res.data.saldo || 0,
-        grafico: Array.isArray(res.data.grafico) ? res.data.grafico : [],
       });
     } catch (err) {
       console.error('Erro ao buscar relatório financeiro', err);
@@ -102,6 +98,16 @@ export default function RelatorioFinanceiroGeral() {
     doc.save('relatorio-financeiro.pdf');
   };
 
+  // prepara dados do gráfico
+  const dadosGrafico = [
+    {
+      nome: 'Totais Financeiros',
+      Contribuição: dados.totalArrecadado,
+      Despesas: dados.totalGasto,
+      Saldo: dados.saldo,
+    },
+  ];
+
   return (
     <Box
       sx={{
@@ -118,7 +124,14 @@ export default function RelatorioFinanceiroGeral() {
         transition={{ duration: 0.8 }}
         style={{ width: '100%', maxWidth: 1000 }}
       >
-        <Card elevation={8} sx={{ borderRadius: 4, overflow: 'hidden', backdropFilter: 'blur(6px)' }}>
+        <Card
+          elevation={8}
+          sx={{
+            borderRadius: 4,
+            overflow: 'hidden',
+            backdropFilter: 'blur(6px)',
+          }}
+        >
           <Box
             sx={{
               p: 4,
@@ -131,7 +144,9 @@ export default function RelatorioFinanceiroGeral() {
               color="white"
               textAlign="center"
             >
-              <MonetizationOn sx={{ fontSize: 40, mr: 1, verticalAlign: 'middle' }} />
+              <MonetizationOn
+                sx={{ fontSize: 40, mr: 1, verticalAlign: 'middle' }}
+              />
               Relatório Financeiro Geral
             </Typography>
           </Box>
@@ -149,7 +164,10 @@ export default function RelatorioFinanceiroGeral() {
             >
               <FormControl sx={{ minWidth: 160 }}>
                 <InputLabel>Período</InputLabel>
-                <Select value={periodo} onChange={(e) => setPeriodo(e.target.value)}>
+                <Select
+                  value={periodo}
+                  onChange={(e) => setPeriodo(e.target.value)}
+                >
                   <MenuItem value="hoje">Hoje</MenuItem>
                   <MenuItem value="semana">Semana</MenuItem>
                   <MenuItem value="mes">Mês</MenuItem>
@@ -208,46 +226,63 @@ export default function RelatorioFinanceiroGeral() {
               </Box>
             ) : (
               <>
+                {/* Cards de resumo */}
                 <Grid container spacing={3} justifyContent="center">
                   <Grid item xs={12} md={4}>
                     <Card sx={{ backgroundColor: '#4caf50', color: 'white', p: 2, textAlign: 'center' }}>
-                      <Typography variant="h6" fontWeight="bold">Total Arrecadado</Typography>
-                      <Typography variant="h4" fontWeight="bold">Kz {dados.totalArrecadado.toFixed(2)}</Typography>
+                      <Typography variant="h6" fontWeight="bold">
+                        Contribuição Total
+                      </Typography>
+                      <Typography variant="h4" fontWeight="bold">
+                        Kz {dados.totalArrecadado.toFixed(2)}
+                      </Typography>
                     </Card>
                   </Grid>
                   <Grid item xs={12} md={4}>
                     <Card sx={{ backgroundColor: '#f44336', color: 'white', p: 2, textAlign: 'center' }}>
-                      <Typography variant="h6" fontWeight="bold">Total Gasto</Typography>
-                      <Typography variant="h4" fontWeight="bold">Kz {dados.totalGasto.toFixed(2)}</Typography>
+                      <Typography variant="h6" fontWeight="bold">
+                        Despesas Totais
+                      </Typography>
+                      <Typography variant="h4" fontWeight="bold">
+                        Kz {dados.totalGasto.toFixed(2)}
+                      </Typography>
                     </Card>
                   </Grid>
                   <Grid item xs={12} md={4}>
                     <Card sx={{ backgroundColor: '#2196f3', color: 'white', p: 2, textAlign: 'center' }}>
-                      <Typography variant="h6" fontWeight="bold">Saldo</Typography>
-                      <Typography variant="h4" fontWeight="bold">Kz {dados.saldo.toFixed(2)}</Typography>
+                      <Typography variant="h6" fontWeight="bold">
+                        Saldo Atual
+                      </Typography>
+                      <Typography variant="h4" fontWeight="bold">
+                        Kz {dados.saldo.toFixed(2)}
+                      </Typography>
                     </Card>
                   </Grid>
                 </Grid>
 
-                {/* Gráfico de Linha com dados reais */}
-                {Array.isArray(dados.grafico) && dados.grafico.length > 0 && (
-                  <Box sx={{ mt: 6, width: '100%', height: 400 }}>
-                    <Typography variant="h6" textAlign="center" fontWeight="bold" mb={2}>
-                      Comparação de Entradas e Saídas
-                    </Typography>
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={dados.grafico}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="data" />
-                        <YAxis />
-                        <Tooltip />
-                        <Legend />
-                        <Line type="monotone" dataKey="entrada" stroke="#4caf50" strokeWidth={3} name="Entradas" />
-                        <Line type="monotone" dataKey="saida" stroke="#f44336" strokeWidth={3} name="Saídas" />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </Box>
-                )}
+                {/* Gráfico de barras */}
+                <Box sx={{ mt: 6, width: '100%', height: 400 }}>
+                  <Typography
+                    variant="h6"
+                    textAlign="center"
+                    fontWeight="bold"
+                    mb={2}
+                  >
+                    Comparativo Financeiro — Contribuição, Despesa e Saldo
+                  </Typography>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={dadosGrafico}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="nome" />
+                      <YAxis />
+                      <Tooltip />
+                      <Legend />
+                      <Bar dataKey="Contribuição" fill="#4caf50" name="Contribuição Total" />
+                      <Bar dataKey="Despesas" fill="#f44336" name="Despesas Totais" />
+                      <Bar dataKey="Saldo" fill="#2196f3" name="Saldo Atual" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </Box>
               </>
             )}
           </CardContent>

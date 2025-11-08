@@ -9,7 +9,6 @@ import {
   Dialog,
   DialogTitle,
   DialogContent,
-  DialogActions,
   IconButton,
   Tooltip,
   CircularProgress,
@@ -23,11 +22,9 @@ import AddIcon from "@mui/icons-material/Add";
 import HistoryIcon from "@mui/icons-material/History";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
-import PaymentsIcon from "@mui/icons-material/Payments";
 
 import api from "../api/axiosConfig";
 import FormTipoContribuicao from "../components/FormTipoContribuicao";
-import FormLancarContribuicao from "../components/FormLancarContribuicao";
 
 import { motion } from "framer-motion";
 
@@ -39,8 +36,6 @@ export default function GestaoContribuicoes() {
   const [loading, setLoading] = useState(false);
   const [openTipoModal, setOpenTipoModal] = useState(false);
   const [tipoEditando, setTipoEditando] = useState(null);
-  const [openLancamentoModal, setOpenLancamentoModal] = useState(false);
-  const [tipoSelecionadoParaLancamento, setTipoSelecionadoParaLancamento] = useState(null);
   const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
 
   useEffect(() => {
@@ -76,11 +71,6 @@ export default function GestaoContribuicoes() {
   const abrirModalEditarTipo = (tipo) => {
     setTipoEditando(tipo);
     setOpenTipoModal(true);
-  };
-
-  const abrirModalLancamento = (tipo) => {
-    setTipoSelecionadoParaLancamento(tipo);
-    setOpenLancamentoModal(true);
   };
 
   const deletarTipo = async (id) => {
@@ -242,17 +232,6 @@ export default function GestaoContribuicoes() {
                   </Box>
 
                   <Box sx={{ display: "flex", gap: 1 }}>
-                    <Tooltip title="Lançar Contribuição">
-                      <IconButton
-                        onClick={() => abrirModalLancamento(tipo)}
-                        sx={{
-                          color: "#00e5ff",
-                          "&:hover": { transform: "scale(1.1)", color: "#7c4dff" },
-                        }}
-                      >
-                        <PaymentsIcon />
-                      </IconButton>
-                    </Tooltip>
                     <Tooltip title="Ver Histórico">
                       <IconButton sx={{ color: "#60a5fa", "&:hover": { transform: "scale(1.1)" } }}>
                         <HistoryIcon />
@@ -288,10 +267,24 @@ export default function GestaoContribuicoes() {
         )}
 
         {/* Modal cadastrar/editar */}
-        <Dialog open={openTipoModal} onClose={() => setOpenTipoModal(false)} maxWidth="sm" fullWidth
-          PaperProps={{ sx: { color: "#e6eef8", background: "linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01))", backdropFilter: "blur(8px)", border: "1px solid rgba(124,77,255,0.08)", borderRadius: 3 } }}
+        <Dialog
+          open={openTipoModal}
+          onClose={() => setOpenTipoModal(false)}
+          maxWidth="sm"
+          fullWidth
+          PaperProps={{
+            sx: {
+              color: "#e6eef8",
+              background: "linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01))",
+              backdropFilter: "blur(8px)",
+              border: "1px solid rgba(124,77,255,0.08)",
+              borderRadius: 3,
+            },
+          }}
         >
-          <DialogTitle sx={{ color: "#e6eef8" }}>{tipoEditando ? "Editar Tipo de Contribuição" : "Cadastrar Tipo de Contribuição"}</DialogTitle>
+          <DialogTitle sx={{ color: "#e6eef8" }}>
+            {tipoEditando ? "Editar Tipo de Contribuição" : "Cadastrar Tipo de Contribuição"}
+          </DialogTitle>
           <DialogContent dividers>
             <FormTipoContribuicao
               tipo={tipoEditando}
@@ -301,23 +294,6 @@ export default function GestaoContribuicoes() {
                 setSnackbar({ open: true, message: `Tipo ${tipoEditando ? "editado" : "criado"} com sucesso!`, severity: "success" });
               }}
               onCancel={() => setOpenTipoModal(false)}
-            />
-          </DialogContent>
-        </Dialog>
-
-        {/* Modal lançar contribuição */}
-        <Dialog open={openLancamentoModal} onClose={() => setOpenLancamentoModal(false)} maxWidth="sm" fullWidth
-          PaperProps={{ sx: { color: "#e6eef8", background: "linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01))", backdropFilter: "blur(8px)", border: "1px solid rgba(124,77,255,0.08)", borderRadius: 3 } }}
-        >
-          <DialogTitle sx={{ color: "#e6eef8" }}>Lançar Contribuição</DialogTitle>
-          <DialogContent dividers>
-            <FormLancarContribuicao
-              tipo={tipoSelecionadoParaLancamento}
-              onSuccess={() => {
-                setOpenLancamentoModal(false);
-                setSnackbar({ open: true, message: "Contribuição lançada com sucesso!", severity: "success" });
-              }}
-              onCancel={() => setOpenLancamentoModal(false)}
             />
           </DialogContent>
         </Dialog>
