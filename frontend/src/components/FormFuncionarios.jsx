@@ -15,6 +15,7 @@ import {
   Alert,
   Divider,
   Fade,
+  Autocomplete,
 } from "@mui/material";
 import { PersonAddAlt1 } from "@mui/icons-material";
 import { motion } from "framer-motion";
@@ -64,6 +65,7 @@ export default function GestaoFuncionarios() {
       setMensagem({ tipo: "", texto: "" });
 
       const token = localStorage.getItem("token");
+
       await api.post(
         "/funcionarios",
         {
@@ -72,21 +74,19 @@ export default function GestaoFuncionarios() {
           MembroId: membroId,
           CargoId: cargoId,
         },
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
+        { headers: { Authorization: `Bearer ${token}` } }
       );
 
       setMensagem({
         tipo: "success",
         texto: "Funcionário cadastrado com sucesso!",
       });
+
       setSalarioBase("");
       setMembroId("");
       setCargoId("");
       setAtivo(true);
     } catch (error) {
-      console.error("Erro ao salvar funcionário:", error);
       setMensagem({
         tipo: "error",
         texto: "Erro ao cadastrar funcionário.",
@@ -131,8 +131,7 @@ export default function GestaoFuncionarios() {
             <Box
               sx={{
                 p: 3,
-                background:
-                  "linear-gradient(90deg, #0033cc 0%, #0055ff 100%)",
+                background: "linear-gradient(90deg, #0033cc 0%, #0055ff 100%)",
                 textAlign: "center",
               }}
             >
@@ -148,9 +147,7 @@ export default function GestaoFuncionarios() {
                   alignItems: "center",
                 }}
               >
-                <PersonAddAlt1
-                  sx={{ fontSize: 35, mr: 1, color: "white" }}
-                />
+                <PersonAddAlt1 sx={{ fontSize: 35, mr: 1, color: "white" }} />
                 Cadastro de Funcionário
               </Typography>
             </Box>
@@ -170,55 +167,32 @@ export default function GestaoFuncionarios() {
                 </Box>
               ) : (
                 <form onSubmit={handleSubmit}>
-                  {/* Membro */}
-                  <FormControl fullWidth sx={{ mb: 3 }}>
-                    <InputLabel>Selecione o Membro</InputLabel>
-                    <Select
-                      value={membroId}
-                      onChange={(e) => setMembroId(e.target.value)}
-                      required
-                      sx={{
-                        borderRadius: 3,
-                        backgroundColor: "rgba(255,255,255,0.97)",
-                        "& fieldset": { borderColor: "rgba(0,70,255,0.25)" },
-                        "&:hover fieldset": {
-                          borderColor: "#0044ff",
-                          boxShadow: "0 0 15px rgba(0,80,255,0.3)",
-                        },
-                        "&.Mui-focused fieldset": {
-                          borderColor: "#0044ff",
-                          boxShadow: "0 0 25px rgba(0,80,255,0.4)",
-                        },
-                      }}
-                    >
-                      {membros.map((m) => (
-                        <MenuItem key={m.id} value={m.id}>
-                          {m.nome}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
+                  
+                  {/* 🔵 AUTOCOMPLETE COM BUSCA PARA MEMBROS */}
+                  <Autocomplete
+                    options={membros}
+                    getOptionLabel={(m) => m.nome}
+                    onChange={(e, value) =>
+                      setMembroId(value ? value.id : "")
+                    }
+                    renderInput={(params) => (
+                      <TextField
+                        {...params}
+                        label="Selecione o Membro"
+                        fullWidth
+                        required
+                      />
+                    )}
+                    sx={{ mb: 3 }}
+                  />
 
-                  {/* Cargo */}
+                  {/* SELECT DE CARGO */}
                   <FormControl fullWidth sx={{ mb: 3 }}>
                     <InputLabel>Selecione o Cargo</InputLabel>
                     <Select
                       value={cargoId}
                       onChange={(e) => setCargoId(e.target.value)}
                       required
-                      sx={{
-                        borderRadius: 3,
-                        backgroundColor: "rgba(255,255,255,0.97)",
-                        "& fieldset": { borderColor: "rgba(0,70,255,0.25)" },
-                        "&:hover fieldset": {
-                          borderColor: "#0044ff",
-                          boxShadow: "0 0 15px rgba(0,80,255,0.3)",
-                        },
-                        "&.Mui-focused fieldset": {
-                          borderColor: "#0044ff",
-                          boxShadow: "0 0 25px rgba(0,80,255,0.4)",
-                        },
-                      }}
                     >
                       {cargos.map((c) => (
                         <MenuItem key={c.id} value={c.id}>
@@ -228,7 +202,6 @@ export default function GestaoFuncionarios() {
                     </Select>
                   </FormControl>
 
-                  {/* Salário Base */}
                   <TextField
                     label="Salário Base (Kz)"
                     type="number"
@@ -236,105 +209,27 @@ export default function GestaoFuncionarios() {
                     onChange={(e) => setSalarioBase(e.target.value)}
                     fullWidth
                     required
-                    sx={{
-                      mb: 3,
-                      "& .MuiOutlinedInput-root": {
-                        borderRadius: 3,
-                        backgroundColor: "rgba(255,255,255,0.97)",
-                        "& fieldset": { borderColor: "rgba(0,70,255,0.25)" },
-                        "&:hover fieldset": {
-                          borderColor: "#0044ff",
-                          boxShadow: "0 0 15px rgba(0,80,255,0.3)",
-                        },
-                        "&.Mui-focused fieldset": {
-                          borderColor: "#0044ff",
-                          boxShadow: "0 0 25px rgba(0,80,255,0.4)",
-                        },
-                      },
-                    }}
-                    inputProps={{ min: 0, step: "0.01" }}
+                    sx={{ mb: 3 }}
                   />
 
-                  {/* Status */}
                   <FormControl fullWidth sx={{ mb: 3 }}>
                     <InputLabel>Status</InputLabel>
                     <Select
                       value={ativo ? 1 : 0}
                       onChange={(e) => setAtivo(e.target.value === 1)}
-                      sx={{
-                        borderRadius: 3,
-                        backgroundColor: "rgba(255,255,255,0.97)",
-                        "& fieldset": { borderColor: "rgba(0,70,255,0.25)" },
-                        "&:hover fieldset": {
-                          borderColor: "#0044ff",
-                          boxShadow: "0 0 15px rgba(0,80,255,0.3)",
-                        },
-                        "&.Mui-focused fieldset": {
-                          borderColor: "#0044ff",
-                          boxShadow: "0 0 25px rgba(0,80,255,0.4)",
-                        },
-                      }}
                     >
                       <MenuItem value={1}>Ativo</MenuItem>
                       <MenuItem value={0}>Inativo</MenuItem>
                     </Select>
                   </FormControl>
 
-                  {/* Mensagem */}
                   {mensagem.texto && (
-                    <Alert
-                      severity={mensagem.tipo}
-                      sx={{
-                        mb: 3,
-                        borderRadius: 3,
-                        backgroundColor:
-                          mensagem.tipo === "success"
-                            ? "rgba(0,80,255,0.08)"
-                            : "rgba(255,80,80,0.1)",
-                        color:
-                          mensagem.tipo === "success"
-                            ? "#0033cc"
-                            : "rgb(150,0,0)",
-                        border: `1px solid ${
-                          mensagem.tipo === "success"
-                            ? "rgba(0,80,255,0.25)"
-                            : "rgba(255,0,0,0.2)"
-                        }`,
-                        fontWeight: 600,
-                      }}
-                    >
+                    <Alert severity={mensagem.tipo} sx={{ mb: 3 }}>
                       {mensagem.texto}
                     </Alert>
                   )}
 
-                  {/* Botão */}
-                  <Button
-                    variant="contained"
-                    fullWidth
-                    type="submit"
-                    disabled={salvando}
-                    sx={{
-                      mt: 2,
-                      py: 1.8,
-                      fontWeight: 800,
-                      fontSize: "1.1rem",
-                      borderRadius: "45px",
-                      textTransform: "none",
-                      color: "#fff",
-                      background:
-                        "linear-gradient(90deg, #0033cc 0%, #0055ff 100%)",
-                      boxShadow:
-                        "0 10px 35px rgba(0,60,255,0.45), inset 0 0 10px rgba(255,255,255,0.3)",
-                      transition: "all 0.35s ease",
-                      "&:hover": {
-                        background:
-                          "linear-gradient(90deg, #0044ff 0%, #0070ff 100%)",
-                        transform: "scale(1.045)",
-                        boxShadow:
-                          "0 12px 45px rgba(0,80,255,0.55), inset 0 0 15px rgba(255,255,255,0.4)",
-                      },
-                    }}
-                  >
+                  <Button variant="contained" fullWidth type="submit">
                     {salvando ? (
                       <CircularProgress size={24} color="inherit" />
                     ) : (

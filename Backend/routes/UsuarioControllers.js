@@ -1329,12 +1329,22 @@ router.get("/descontos", auth, async (req, res) => {
 });
 
 
+
+
 router.post("/salarios", auth, async (req, res) => {
   try {
-    const { FuncionarioId, mes_ano, subsidiosAplicados = [], descontosAplicados = [] } = req.body;
+    const {
+      FuncionarioId,
+      mes_ano,
+      subsidiosAplicados = [],
+      descontosAplicados = []
+    } = req.body;
 
-    // 🔹 Buscar o funcionário
-    const funcionario = await Funcionarios.findByPk(FuncionarioId);
+    // 🔹 Buscar o funcionário com o membro associado
+    const funcionario = await Funcionarios.findByPk(FuncionarioId, {
+      include: [{ model: Membros, as: "Membro" }]
+    });
+
     if (!funcionario) {
       return res.status(404).json({ message: "Funcionário não encontrado." });
     }
@@ -1358,6 +1368,7 @@ router.post("/salarios", auth, async (req, res) => {
 
     const { SedeId, FilhalId } = req.usuario;
 
+    // 🔹 Criar o registro do salário
     const salario = await Salarios.create({
       mes_ano,
       salario_base,
@@ -1365,20 +1376,55 @@ router.post("/salarios", auth, async (req, res) => {
       salario_liquido,
       FuncionarioId,
       SedeId: SedeId || null,
-      FilhalId: FilhalId || null,
+      FilhalId: FilhalId || null
     });
 
-    res.status(201).json({
-      message: "✅ Salário gerado com sucesso!",
-      salario,
+    // ----------------------------------------------------------
+    // 🔥 CRIAÇÃO AUTOMÁTICA DA DESPESA RELACIONADA AO SALÁRIO
+    // ----------------------------------------------------------
+
+    const nomeMembro = funcionario?.Membro?.nome || "Colaborador sem nome";
+
+    await Despesa.create({
+      descricao: `Remuneração referente ao salário do membro ${nomeMembro} — ${salario_liquido.toFixed(2)} Kz`,
+      valor: salario_liquido,
+      data: new Date(),
+      categoria: "Salário",
+      tipo: "Fixa",
+      observacao: `Salário referente ao mês ${mes_ano}`,
+      SedeId: SedeId || null,
+      FilhalId: FilhalId || null
     });
+
+    // ----------------------------------------------------------
+
+    res.status(201).json({
+      message: "✅ Salário gerado e despesa registrada com sucesso!",
+      salario
+    });
+
   } catch (error) {
     console.error("Erro ao gerar salário:", error);
     res.status(500).json({ message: "❌ Erro interno ao gerar salário." });
   }
 });
 
- 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 router.post("/subsidios", auth, async (req, res) => {
@@ -2375,77 +2421,61 @@ router.post('/contribuicoes', auth, async (req, res) => {
 const { Op } = require('sequelize');
 
 
-
-
-// Rota - Listar contribuições filtradas pelo usuário logado (Sede/Filhal)
+// Rota - Listar contribuições filtradas pelo usuário logado (Sede/Filial)
 router.get('/lista/contribuicoes', auth, async (req, res) => {
   const { startDate, endDate, tipoId, membroId } = req.query;
 
   const where = {};
 
-  // Filtro de datas
-  if (startDate && endDate) {
-    where.data = { [Op.between]: [startDate, endDate] };
-  }
-
-  // Filtro por tipo e membro (opcional)
-  if (tipoId) where.TipoContribuicaoId = tipoId;
-  if (membroId) where.MembroId = membroId;
-
-  // Filtro hierárquico pelo usuário logado
-  const { SedeId, FilhalId } = req.usuario;
-  if (FilhalId) {
-    where.FilhalId = FilhalId;
-  } else if (SedeId) {
-    where.SedeId = SedeId;
-  }
-
   try {
+    // -----------------------------
+    // 🔎 FILTRO POR DATAS
+    // -----------------------------
+    if (startDate && endDate) {
+      where.data = {
+        [Op.between]: [
+          `${startDate} 00:00:00`,
+          `${endDate} 23:59:59`
+        ]
+      };
+    }
+
+    // -----------------------------
+    // 🔎 FILTROS OPCIONAIS
+    // -----------------------------
+    if (tipoId) where.TipoContribuicaoId = tipoId;
+    if (membroId) where.MembroId = membroId;
+
+    // -----------------------------
+    // 🔐 FILTRO HIERÁRQUICO
+    // -----------------------------
+    const { SedeId, FilhalId } = req.usuario;
+
+    if (FilhalId) {
+      where.FilhalId = FilhalId;
+    } else if (SedeId) {
+      where.SedeId = SedeId;
+    }
+
+    // -----------------------------
+    // 📥 CONSULTA NO BANCO
+    // -----------------------------
     const contribuicoes = await Contribuicao.findAll({
       where,
       include: [
-        { model: TipoContribuicao, attributes: ['nome'] },
-        { model: Membros, attributes: ['nome'] }
+        { model: TipoContribuicao, attributes: ['id', 'nome'] },
+        { model: Membros, attributes: ['id', 'nome'] }
       ],
       order: [['data', 'DESC']],
     });
 
     return res.status(200).json(contribuicoes);
+
   } catch (error) {
     console.error('Erro ao buscar contribuições:', error);
     return res.status(500).json({ message: 'Erro ao buscar contribuições' });
   }
 });
-
-
-// Rota - Excluir contribuição (garante que só a Sede/Filhal dona pode excluir)
-router.delete('/contribuicoes/:id', auth, async (req, res) => {
-  const { id } = req.params;
-  const { SedeId, FilhalId } = req.usuario;
-
-  try {
-    const contribuicao = await Contribuicao.findByPk(id);
-
-    if (!contribuicao) {
-      return res.status(404).json({ message: 'Contribuição não encontrada' });
-    }
-
-    // Verifica se o usuário logado pertence à mesma sede/filhal da contribuição
-    if (
-      (FilhalId && contribuicao.FilhalId !== FilhalId) ||
-      (!FilhalId && SedeId && contribuicao.SedeId !== SedeId)
-    ) {
-      return res.status(403).json({ message: 'Você não tem permissão para excluir esta contribuição.' });
-    }
-
-    await contribuicao.destroy();
-    return res.status(200).json({ message: 'Contribuição excluída com sucesso' });
-  } catch (error) {
-    console.error('Erro ao excluir contribuição:', error);
-    return res.status(500).json({ message: 'Erro ao excluir contribuição' });
-  }
-});
-
 
 
 
