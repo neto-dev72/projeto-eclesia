@@ -55,6 +55,9 @@ export default function GestaoMembros() {
   const [perfilMembro, setPerfilMembro] = useState(null);
   const [historicoMembro, setHistoricoMembro] = useState(null);
   const [membroEditar, setMembroEditar] = useState(null); // Para edição
+  const [page, setPage] = useState(1);
+const itemsPerPage = 8;
+
 
   useEffect(() => {
     if (!document.getElementById("gf-poppins")) {
@@ -90,7 +93,19 @@ export default function GestaoMembros() {
       const q = search.toLowerCase();
       setFilteredMembros(membros.filter((m) => (m.nome || "").toLowerCase().includes(q)));
     }
+    setPage(1);
   }, [search, membros]);
+
+  // 🔵 Paginação
+const startIndex = (page - 1) * itemsPerPage;
+const endIndex = startIndex + itemsPerPage;
+
+// Apenas os membros da página atual
+const paginatedMembros = filteredMembros.slice(startIndex, endIndex);
+
+// Total de páginas
+const totalPages = Math.ceil(filteredMembros.length / itemsPerPage);
+
 
   const handleDeleteClick = (membro) => setDeletingMembro(membro);
   const cancelDelete = () => setDeletingMembro(null);
@@ -281,7 +296,7 @@ const handleEditarMembro = async (membro) => {
                 Nenhum membro encontrado.
               </Typography>
             ) : (
-              filteredMembros.map((membro, idx) => (
+              paginatedMembros.map((membro, idx) => (
                 <motion.div
                   custom={idx}
                   initial="hidden"
@@ -428,7 +443,104 @@ const handleEditarMembro = async (membro) => {
               ))
             )}
           </List>
+          
         )}
+
+     {/* 🔵 PAGINAÇÃO */}
+{filteredMembros.length > itemsPerPage && (
+  <Box
+    sx={{
+      display: "flex",
+      justifyContent: "center",
+      alignItems: "center",
+      gap: 3,
+      mt: 6,
+    }}
+  >
+    {/* BOTÃO ANTERIOR */}
+    <Button
+      disabled={page === 1}
+      onClick={() => setPage((p) => p - 1)}
+      sx={{
+        px: 3,
+        py: 1.2,
+        fontWeight: 700,
+        textTransform: "none",
+        fontSize: "1rem",
+        borderRadius: "14px",
+        letterSpacing: "0.5px",
+        background: page === 1 
+          ? "rgba(255,255,255,0.1)" 
+          : "linear-gradient(135deg, #7c4dff, #512da8)",
+        color: "#ffffff",
+        border: "none",
+        boxShadow: page === 1
+          ? "none"
+          : "0px 4px 15px rgba(124, 77, 255, 0.45)",
+        transition: "all 0.25s ease",
+        cursor: page === 1 ? "not-allowed" : "pointer",
+        "&:hover": {
+          transform: page === 1 ? "none" : "translateY(-3px)",
+          boxShadow: page === 1
+            ? "none"
+            : "0px 6px 20px rgba(124, 77, 255, 0.65)",
+        },
+      }}
+    >
+      ◀ Anterior
+    </Button>
+
+    {/* INDICADOR DE PÁGINA */}
+    <Typography
+      sx={{
+        fontWeight: 800,
+        fontSize: "1.2rem",
+        color: "#e6eef8",
+        letterSpacing: "1px",
+        background: "linear-gradient(135deg, #7c4dff, #00c6ff)",
+        WebkitBackgroundClip: "text",
+        WebkitTextFillColor: "transparent",
+        userSelect: "none",
+      }}
+    >
+      Página {page} de {totalPages}
+    </Typography>
+
+    {/* BOTÃO PRÓXIMA */}
+    <Button
+      disabled={page === totalPages}
+      onClick={() => setPage((p) => p + 1)}
+      sx={{
+        px: 3,
+        py: 1.2,
+        fontWeight: 700,
+        textTransform: "none",
+        fontSize: "1rem",
+        borderRadius: "14px",
+        letterSpacing: "0.5px",
+        background: page === totalPages 
+          ? "rgba(255,255,255,0.1)" 
+          : "linear-gradient(135deg, #00c6ff, #7c4dff)",
+        color: "#ffffff",
+        border: "none",
+        boxShadow: page === totalPages
+          ? "none"
+          : "0px 4px 15px rgba(0, 198, 255, 0.45)",
+        transition: "all 0.25s ease",
+        cursor: page === totalPages ? "not-allowed" : "pointer",
+        "&:hover": {
+          transform: page === totalPages ? "none" : "translateY(-3px)",
+          boxShadow: page === totalPages
+            ? "none"
+            : "0px 6px 20px rgba(0, 198, 255, 0.65)",
+        },
+      }}
+    >
+      Próxima ▶
+    </Button>
+  </Box>
+)}
+
 
       </Container>
 

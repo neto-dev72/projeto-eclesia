@@ -73,29 +73,58 @@ export default function FormCultos({ culto, onSuccess, onCancel }) {
     })();
   }, []);
 
-  // Preencher formulário ao editar
-  useEffect(() => {
-    if (culto) {
-      setFormData({
-        dataHora: culto.dataHora ? culto.dataHora.slice(0, 16) : "",
-        tipoCultoId: culto.tipoCultoId || "",
-        homens: culto.homens || "",
-        mulheres: culto.mulheres || "",
-        criancas: culto.criancas || "",
-        contribuicoes: (culto.contribuicoes || []).reduce((acc, c) => {
-          acc[c.tipoId] = c.valor;
-          return acc;
-        }, {}),
-        membrosContribuicoes: (culto.contribuicoes || [])
-          .filter((c) => c.membroId)
-          .reduce((acc, c) => {
-            if (!acc[c.tipoId]) acc[c.tipoId] = {};
-            acc[c.tipoId][c.membroId] = c.valor;
-            return acc;
-          }, {}),
-      });
-    }
-  }, [culto]);
+ 
+
+
+  // useEffect para inicializar os dados do culto
+useEffect(() => {
+  if (culto) {
+    const contribGeral = {};      // contribuições sem membro
+    const contribPorMembro = {};  // contribuições com membro
+
+    (culto.contribuicoes || []).forEach((c) => {
+      const tipoId = c.tipoId;
+      const valor = Number(c.valor);
+
+      if (c.membroId) {
+        if (!contribPorMembro[tipoId]) contribPorMembro[tipoId] = {};
+        contribPorMembro[tipoId][c.membroId] = valor;
+      } else {
+        contribGeral[tipoId] = (contribGeral[tipoId] || 0) + valor;
+      }
+    });
+
+    // total = contribuições gerais + soma de todos os membros
+    const totalContribuicoes = {};
+
+    const todosTipos = new Set([
+      ...Object.keys(contribGeral),
+      ...Object.keys(contribPorMembro),
+    ]);
+
+    todosTipos.forEach((tipoId) => {
+      const totalGeral = contribGeral[tipoId] || 0;
+      const totalMembros = contribPorMembro[tipoId]
+        ? Object.values(contribPorMembro[tipoId]).reduce((a, b) => a + b, 0)
+        : 0;
+      totalContribuicoes[tipoId] = totalGeral + totalMembros;
+    });
+
+    setFormData({
+      dataHora: culto.dataHora ? culto.dataHora.slice(0, 16) : "",
+      tipoCultoId: culto.tipoCultoId || "",
+      homens: culto.homens || "",
+      mulheres: culto.mulheres || "",
+      criancas: culto.criancas || "",
+      contribuicoes: totalContribuicoes,
+      membrosContribuicoes: contribPorMembro,
+    });
+  }
+}, [culto]);
+
+
+
+
 
   const handleChange = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -108,25 +137,47 @@ export default function FormCultos({ culto, onSuccess, onCancel }) {
     }));
   };
 
-  const handleAddMembroContribuicao = () => {
-    if (!modalTipoId || !selectedMembro || !valorMembro) return;
 
-    setFormData((prev) => ({
+  // handleAddMembroContribuicao corrigido
+const handleAddMembroContribuicao = () => {
+  if (!modalTipoId || !selectedMembro || !valorMembro) return;
+
+  const valorNum = Number(valorMembro);
+
+  setFormData((prev) => {
+    // Atualiza os membros
+    const novosMembros = {
+      ...(prev.membrosContribuicoes[modalTipoId] || {}),
+      [selectedMembro.id]: valorNum,
+    };
+
+    // Soma total de todos os membros
+    const totalMembros = Object.values(novosMembros).reduce((a, b) => a + b, 0);
+
+    // Pega o valor geral (somente contribuições sem membro)
+    const valorGeral = prev.contribuicoes[modalTipoId] || 0;
+
+    // Total = geral + todos os membros
+    const totalGeral = valorGeral + totalMembros;
+
+    return {
       ...prev,
       membrosContribuicoes: {
         ...prev.membrosContribuicoes,
-        [modalTipoId]: {
-          ...(prev.membrosContribuicoes[modalTipoId] || {}),
-          [selectedMembro.id]: valorMembro,
-        },
+        [modalTipoId]: novosMembros,
       },
-    }));
+      contribuicoes: {
+        ...prev.contribuicoes,
+        [modalTipoId]: totalGeral,
+      },
+    };
+  });
 
-    setSelectedMembro(null);
-    setValorMembro("");
-    setModalTipoId(null);
-    setOpenModal(false);
-  };
+  setSelectedMembro(null);
+  setValorMembro("");
+  setModalTipoId(null);
+  setOpenModal(false);
+};
 
   const handleSubmit = async (e) => {
     e.preventDefault();

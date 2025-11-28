@@ -3052,7 +3052,7 @@ router.post('/detalhes-cultos', auth, async (req, res) => {
       // [{ tipoId: 1, valor: 5000 }, { tipoId: 2, valor: 10000, membroId: 7 }]
       const contribs = contribuicoes.map(c => ({
         valor: parseFloat(c.valor) || 0,
-        data: new Date(),
+        data: new Date(dataHora),
         TipoContribuicaoId: c.tipoId,
         CultoId: culto.id,
         MembroId: c.membroId || null,     // se vier, fica individual
@@ -3198,7 +3198,7 @@ router.put('/detalhes-cultos/:id', auth, async (req, res) => {
     if (Array.isArray(contribuicoes) && contribuicoes.length > 0) {
       const novasContribuicoes = contribuicoes.map(c => ({
         valor: parseFloat(c.valor) || 0,
-        data: new Date(),
+        data: new Date(dataHora),
         TipoContribuicaoId: c.tipoId,
         CultoId: cultoId,
         MembroId: c.membroId || null,
