@@ -291,7 +291,18 @@ export default function RelatorioContribuicoes() {
                 </Typography>
 
                 {/* TABELA RESPONSIVA */}
-                <TableContainer component={Paper} sx={{ borderRadius: 3, boxShadow: '0 4px 20px rgba(0,0,0,0.15)', mb: 4, overflowX: 'auto' }}>
+                <TableContainer
+  component={Paper}
+  sx={{
+    borderRadius: 3,
+    boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
+    mb: 4,
+    overflowX: 'auto',
+    maxHeight: 500,         // 🔥 ALTURA DEFINIDA PARA ATIVAR O stickyHeader
+    overflowY: 'auto'       // 🔥 PERMITE ROLAR VERTICALMENTE
+  }}
+>
+
                   <Table stickyHeader>
                     <TableHead>
                       <TableRow>

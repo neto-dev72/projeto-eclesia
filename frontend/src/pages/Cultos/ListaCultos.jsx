@@ -112,6 +112,11 @@ export default function GestaoCultos() {
   const [filteredCultos, setFilteredCultos] = useState([]);
   const [loading, setLoading] = useState(false);
 
+  
+  const [paginaCultos, setPaginaCultos] = useState({});
+const cultosPorPagina = 4;
+
+
   // UI controls
   const [openFormModal, setOpenFormModal] = useState(false);
   const [openFormTipoModal, setOpenFormTipoModal] = useState(false);
@@ -237,6 +242,13 @@ export default function GestaoCultos() {
     hidden: { opacity: 0, y: 10 },
     show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 120, damping: 14 } },
   };
+
+
+const mudarPaginaCultos = (idGrupo, novaPagina, totalCultos) => {
+  const maxPaginas = Math.ceil(totalCultos / cultosPorPagina);
+  if (novaPagina < 1 || novaPagina > maxPaginas) return;
+  setPaginaCultos((prev) => ({ ...prev, [idGrupo]: novaPagina }));
+};
 
   return (
     <ThemeProvider theme={theme}>
@@ -441,56 +453,98 @@ export default function GestaoCultos() {
                           Cultos Realizados
                         </Typography>
 
-                        <Timeline position="alternate">
-                          {Array.isArray(grupo.cultos) && grupo.cultos.map((c, i) => (
-                            <TimelineItem key={c.id || i}>
-                              <TimelineOppositeContent color="text.secondary" sx={{ m: "auto 0" }}>
-                                {new Date(c.dataHora).toLocaleDateString()}
-                              </TimelineOppositeContent>
+                       <Timeline position="alternate">
+  {(() => {
+    const pagina = paginaCultos[grupo.id] || 1;
+    const inicio = (pagina - 1) * cultosPorPagina;
+    const fim = inicio + cultosPorPagina;
+    const cultosPagina = grupo.cultos.slice(inicio, fim);
 
-                              <TimelineSeparator>
-                                <NeonTimelineDot colorindex={i}>
-                                  <EventIcon sx={{ fontSize: 16 }} />
-                                </NeonTimelineDot>
-                                {i < (grupo.cultos.length - 1) && <TimelineConnector sx={{ bgcolor: "rgba(255,255,255,0.06)" }} />}
-                              </TimelineSeparator>
+    return cultosPagina.map((c, i) => (
+      <TimelineItem key={c.id || i}>
+        <TimelineOppositeContent color="text.secondary" sx={{ m: "auto 0" }}>
+          {new Date(c.dataHora).toLocaleDateString()}
+        </TimelineOppositeContent>
 
-                              <TimelineContent sx={{ py: "12px", px: 2 }}>
-                                <Box
-                                  sx={{
-                                    p: 2,
-                                    borderRadius: 3,
-                                    background: mode === "dark" ? "linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01))" : "rgba(255,255,255,0.9)",
-                                    boxShadow: mode === "dark" ? "0 8px 30px rgba(2,6,23,0.6)" : "0 6px 20px rgba(15,23,42,0.06)",
-                                    transition: "transform 220ms ease",
-                                    "&:hover": { transform: "translateY(-4px)" },
-                                  }}
-                                >
-                                  <Typography variant="body2" sx={{ fontWeight: 700 }}>{new Date(c.dataHora).toLocaleTimeString()}</Typography>
-                                  <Typography variant="caption" display="block" color="text.secondary" sx={{ mb: 0.5 }}>
-                                    <PlaceIcon fontSize="small" /> {c.local || "Não informado"}
-                                  </Typography>
-                                  <Typography variant="caption" display="block" color="text.secondary">
-                                    <PersonIcon fontSize="small" /> {c.responsavel || "N/D"}
-                                  </Typography>
+        <TimelineSeparator>
+          <NeonTimelineDot colorindex={i}>
+            <EventIcon sx={{ fontSize: 16 }} />
+          </NeonTimelineDot>
+          {i < cultosPagina.length - 1 && (
+            <TimelineConnector sx={{ bgcolor: "rgba(255,255,255,0.06)" }} />
+          )}
+        </TimelineSeparator>
 
-                                  <Box sx={{ mt: 1, display: "flex", gap: 1 }}>
-                                    <Tooltip title="Editar">
-                                      <IconButton size="small" onClick={() => abrirModalEditarCulto(c)}>
-                                        <EditIcon color="primary" fontSize="small" />
-                                      </IconButton>
-                                    </Tooltip>
-                                    <Tooltip title="Excluir">
-                                      <IconButton size="small" onClick={() => deletarCulto(c.id)}>
-                                        <DeleteIcon color="error" fontSize="small" />
-                                      </IconButton>
-                                    </Tooltip>
-                                  </Box>
-                                </Box>
-                              </TimelineContent>
-                            </TimelineItem>
-                          ))}
-                        </Timeline>
+        <TimelineContent sx={{ py: "12px", px: 2 }}>
+          <Box
+            sx={{
+              p: 2,
+              borderRadius: 3,
+              background:
+                mode === "dark"
+                  ? "linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01))"
+                  : "rgba(255,255,255,0.9)",
+              boxShadow: mode === "dark" ? "0 8px 30px rgba(2,6,23,0.6)" : "0 6px 20px rgba(15,23,42,0.06)",
+              transition: "transform 220ms ease",
+              "&:hover": { transform: "translateY(-4px)" },
+            }}
+          >
+            <Typography variant="body2" sx={{ fontWeight: 700 }}>
+              {new Date(c.dataHora).toLocaleTimeString()}
+            </Typography>
+            <Typography variant="caption" display="block" color="text.secondary" sx={{ mb: 0.5 }}>
+              <PlaceIcon fontSize="small" /> {c.local || "Não informado"}
+            </Typography>
+            <Typography variant="caption" display="block" color="text.secondary">
+              <PersonIcon fontSize="small" /> {c.responsavel || "N/D"}
+            </Typography>
+
+            <Box sx={{ mt: 1, display: "flex", gap: 1 }}>
+              <Tooltip title="Editar">
+                <IconButton size="small" onClick={() => abrirModalEditarCulto(c)}>
+                  <EditIcon color="primary" fontSize="small" />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title="Excluir">
+                <IconButton size="small" onClick={() => deletarCulto(c.id)}>
+                  <DeleteIcon color="error" fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            </Box>
+          </Box>
+        </TimelineContent>
+      </TimelineItem>
+    ));
+  })()}
+</Timeline>
+<Box sx={{ display: "flex", justifyContent: "center", gap: 2, mt: 2 }}>
+  <Button
+    variant="outlined"
+    onClick={() =>
+      mudarPaginaCultos(grupo.id, (paginaCultos[grupo.id] || 1) - 1, grupo.cultos.length)
+    }
+    disabled={(paginaCultos[grupo.id] || 1) === 1}
+    sx={{ borderRadius: 2 }}
+  >
+    Anterior
+  </Button>
+
+  <Typography sx={{ alignSelf: "center" }}>
+    Página {(paginaCultos[grupo.id] || 1)} de {Math.ceil(grupo.cultos.length / cultosPorPagina)}
+  </Typography>
+
+  <Button
+    variant="outlined"
+    onClick={() =>
+      mudarPaginaCultos(grupo.id, (paginaCultos[grupo.id] || 1) + 1, grupo.cultos.length)
+    }
+    disabled={(paginaCultos[grupo.id] || 1) === Math.ceil(grupo.cultos.length / cultosPorPagina)}
+    sx={{ borderRadius: 2 }}
+  >
+    Próximo
+  </Button>
+</Box>
+
                       </AccordionDetails>
                     </GlassAccordion>
                   </Zoom>

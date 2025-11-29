@@ -4713,7 +4713,6 @@ router.delete("/filhal/:id", async (req, res) => {
 
 
 
-
 // ====================================================
 // ROTA → LISTAR MEMBROS E DROPDOWNS DE FILTROS
 // ====================================================
@@ -4861,10 +4860,21 @@ router.get("/membros-filtros", auth, async (req, res) => {
     });
 
     // ==========================
-    // BLOCO → CATEGORIAS MINISTERIAIS
+    // BLOCO → CATEGORIAS MINISTERIAIS (CORRIGIDO)
     // ==========================
     const categoriasMinisteriais = await DadosCristaos.findAll({
-      where: { categoria_ministerial: { [Op.ne]: null } },
+      where: {
+        categoria_ministerial: { [Op.ne]: null },
+      },
+      include: [
+        {
+          model: Membros,
+          attributes: ["id", "FilhalId", "SedeId"],
+          where: FilhalId
+            ? { FilhalId }
+            : { SedeId },
+        },
+      ],
       attributes: ["categoria_ministerial", "MembroId"],
     });
 
@@ -4879,10 +4889,21 @@ router.get("/membros-filtros", auth, async (req, res) => {
     );
 
     // ==========================
-    // 🆕 BLOCO → HABILITAÇÕES
+    // BLOCO → HABILITAÇÕES (CORRIGIDO)
     // ==========================
     const habilitacoes = await DadosAcademicos.findAll({
-      where: { habilitacoes: { [Op.ne]: null } },
+      where: {
+        habilitacoes: { [Op.ne]: null },
+      },
+      include: [
+        {
+          model: Membros,
+          attributes: ["id", "FilhalId", "SedeId"],
+          where: FilhalId
+            ? { FilhalId }
+            : { SedeId },
+        },
+      ],
       attributes: ["habilitacoes", "MembroId"],
     });
 
@@ -4910,7 +4931,7 @@ router.get("/membros-filtros", auth, async (req, res) => {
         cargos: cargosFormatados,
         departamentos: departamentosFormatados,
         categoriasMinisteriais: categoriasFormatadas,
-        habilitacoes: habilitacoesFormatadas, // ✅ novo dropdown
+        habilitacoes: habilitacoesFormatadas,
       },
     });
   } catch (error) {
@@ -4921,9 +4942,6 @@ router.get("/membros-filtros", auth, async (req, res) => {
     });
   }
 });
-
-
-
 
 
 
@@ -5171,11 +5189,6 @@ router.post("/membros-relatorio", auth, async (req, res) => {
 
 
 
-
-
-
-
-// Rota para histórico de contribuições de um membro
 router.get('/membros/:membroId/historico', auth, async (req, res) => {
   const { membroId } = req.params;
 
@@ -5195,10 +5208,61 @@ router.get('/membros/:membroId/historico', auth, async (req, res) => {
     const contribuicoes = await Contribuicao.findAll({
       where: { MembroId: membroId, ...filtroHierarquia },
       include: [{ model: TipoContribuicao, attributes: ['nome'] }],
-      order: [['data', 'DESC']],
+      order: [['data', 'ASC']],
     });
 
-    // Calcular totais por tipo de contribuição
+    // ==========================
+    // CALCULA STATUS DO MEMBRO
+    // ==========================
+    let status = 'Novo';
+    if (contribuicoes.length > 0) {
+      const ultimaContribuicao = new Date(contribuicoes[contribuicoes.length - 1].data);
+      const hoje = new Date();
+      const diffMeses = (hoje.getFullYear() - ultimaContribuicao.getFullYear()) * 12
+                       + (hoje.getMonth() - ultimaContribuicao.getMonth());
+      if (diffMeses <= 3) status = 'Regular';
+      else status = 'Irregular';
+    }
+
+    // ==========================
+    // AGRUPAR CONTRIBUIÇÕES POR ANO / MÊS / TIPO
+    // ==========================
+    const historicoPorMes = {}; // { '2025-10': { total: 9000, tipos: { 'Dízimos': 9000 } } }
+    let totalGeral = 0;
+
+    contribuicoes.forEach(c => {
+      const data = new Date(c.data);
+      const anoMes = `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, '0')}`;
+      const tipo = c.TipoContribuicao.nome;
+      const valor = parseFloat(c.valor);
+
+      totalGeral += valor;
+
+      if (!historicoPorMes[anoMes]) historicoPorMes[anoMes] = { total: 0, tipos: {} };
+      historicoPorMes[anoMes].total += valor;
+
+      if (!historicoPorMes[anoMes].tipos[tipo]) historicoPorMes[anoMes].tipos[tipo] = 0;
+      historicoPorMes[anoMes].tipos[tipo] += valor;
+    });
+
+    // ==========================
+    // CONSTRUIR RESUMO POR ANO/MÊS
+    // ==========================
+    const resumoPorMes = Object.entries(historicoPorMes)
+      .sort(([mesA], [mesB]) => new Date(mesA + '-01') - new Date(mesB + '-01'))
+      .map(([anoMes, dados]) => ({
+        mes: anoMes,
+        totalMensal: dados.total,
+        tipos: Object.entries(dados.tipos).map(([tipo, valor]) => ({
+          tipo,
+          total: valor,
+          percentual: ((valor / dados.total) * 100).toFixed(2) + '%'
+        }))
+      }));
+
+    // ==========================
+    // RESUMO GERAL POR TIPO
+    // ==========================
     const totalPorTipo = {};
     contribuicoes.forEach(c => {
       const tipo = c.TipoContribuicao.nome;
@@ -5206,41 +5270,21 @@ router.get('/membros/:membroId/historico', auth, async (req, res) => {
       totalPorTipo[tipo] += parseFloat(c.valor);
     });
 
-    // Calcular total geral
-    const totalGeral = contribuicoes.reduce((acc, c) => acc + parseFloat(c.valor), 0);
-
-    // Determinar status do membro
-    let status = 'Novo';
-    if (contribuicoes.length > 0) {
-      const ultimaContribuicao = new Date(contribuicoes[0].data);
-      const hoje = new Date();
-      const diffMeses = (hoje.getFullYear() - ultimaContribuicao.getFullYear()) * 12 
-                       + (hoje.getMonth() - ultimaContribuicao.getMonth());
-      if (diffMeses <= 3) status = 'Regular';
-      else status = 'Irregular';
-    }
-
-    // Criar resumo por tipo de contribuição com porcentagem
-    const resumoPorTipo = Object.entries(totalPorTipo).map(([tipo, valor]) => ({
+    const resumoPorTipoGeral = Object.entries(totalPorTipo).map(([tipo, valor]) => ({
       tipo,
       total: valor,
-      percentual: ((valor / totalGeral) * 100).toFixed(2) + '%'
+      percentual: totalGeral > 0 ? ((valor / totalGeral) * 100).toFixed(2) + '%' : '0%'
     }));
 
-    console.log({
-      status,
-      totalGeral,
-      quantidadeContribuicoes: contribuicoes.length,
-      resumoPorTipo,
-      contribuicoes
-    })
-
+    // ==========================
+    // RETORNO
+    // ==========================
     return res.status(200).json({
       status,
       totalGeral,
       quantidadeContribuicoes: contribuicoes.length,
-      resumoPorTipo,
-      contribuicoes
+      resumoPorTipoGeral,
+      historicoPorMes: resumoPorMes // mesmo que vazio, será []
     });
 
   } catch (error) {
@@ -5248,8 +5292,6 @@ router.get('/membros/:membroId/historico', auth, async (req, res) => {
     return res.status(500).json({ message: 'Erro ao buscar histórico do membro' });
   }
 });
-
-
 
 
 
@@ -5593,7 +5635,6 @@ router.get("/eventos", auth, async (req, res) => {
 
 
 
-
 // 🔹 Rota para listar notificações do usuário logado (filtradas por Sede e/ou Filhal)
 router.get("/notificacoes", auth, async (req, res) => {
   try {
@@ -5604,25 +5645,30 @@ router.get("/notificacoes", auth, async (req, res) => {
       return res.status(400).json({ message: "Usuário não está vinculado a uma sede ou filial." });
     }
 
-    // 🔍 Busca todas as NotificacaoLocal com vínculo à sede ou filial do usuário
-    const filtroLocal = {};
-    if (FilhalId) filtroLocal.FilhalId = FilhalId;
-    else if (SedeId) filtroLocal.SedeId = SedeId;
-
+    // 🔍 Filtro correto para NotificacaoLocal (SUPORTA SEDE E FILIAL AO MESMO TEMPO)
     const notificacoesLocais = await NotificacaoLocal.findAll({
-      where: filtroLocal,
+      where: {
+        [Op.or]: [
+          FilhalId ? { FilhalId } : null,
+          SedeId ? { SedeId } : null
+        ].filter(Boolean)
+      },
       attributes: ["NotificacaoId"],
     });
 
     const idsNotificacoes = notificacoesLocais.map((n) => n.NotificacaoId);
 
     if (idsNotificacoes.length === 0) {
-      return res.json([]); // ✅ Nenhuma notificação para o contexto do usuário
+      console.log("⚠️ Nenhuma notificação encontrada para esta unidade.");
+      return res.json([]);
     }
 
-    // 🔹 Busca as notificações correspondentes, com os relacionamentos
+    // 🔹 Busca as notificações correspondentes, EXCETO aniversários
     const notificacoes = await Notificacao.findAll({
-      where: { id: idsNotificacoes },
+      where: { 
+        id: idsNotificacoes,
+        tipo: { [Op.ne]: "aniversario" }   // ⛔ Exclui notificações de aniversário
+      },
       order: [["data_enviada", "DESC"]],
       include: [
         { model: Membros, attributes: ["id", "nome", "foto"] },
@@ -5632,17 +5678,14 @@ router.get("/notificacoes", auth, async (req, res) => {
       ],
     });
 
-    console.log(`✅ ${notificacoes.length} notificações encontradas.`);
+    console.log(`✅ ${notificacoes.length} notificações encontradas (SEM aniversários).`);
     res.json(notificacoes);
+
   } catch (error) {
     console.error("❌ Erro ao buscar notificações:", error);
     res.status(500).json({ message: "Erro interno ao buscar notificações." });
   }
 });
-
-
-
-
 
 
 
@@ -5734,15 +5777,48 @@ router.get("/aniversarios", auth, async (req, res) => {
       notificacoesGeradas.push(novaNotif);
     }
 
+    // --------------------------------------------------------------------
+    // 🔥 **AQUI ENTRA O FILTRO ESSENCIAL**
+    // Pega SOMENTE notificações vinculadas à sede/filhal do usuário logado
+    // --------------------------------------------------------------------
+    const filtroLocal = {
+      [Op.or]: [],
+    };
+
+    if (SedeId) {
+      filtroLocal[Op.or].push({ SedeId });
+    }
+
+    if (FilhalId) {
+      filtroLocal[Op.or].push({ FilhalId });
+    }
+
+    // Se o usuário não tiver sede nem filhal → NÃO retorna nada
+    if (filtroLocal[Op.or].length === 0) {
+      return res.json({
+        message: "Usuário sem sede/filhal, nenhuma notificação disponível.",
+        criadasOuAtualizadas: notificacoesGeradas.length,
+        removidas: notificacoesRemovidas,
+        todasNotificacoes: [],
+      });
+    }
+
     const todasNotificacoes = await Notificacao.findAll({
       where: {
         tipo: "aniversario",
         createdAt: { [Op.gte]: new Date(hoje.getFullYear(), 0, 1) },
       },
-      include: {
-        model: Membros,
-        attributes: ["id", "nome", "foto", "data_nascimento"],
-      },
+      include: [
+        {
+          model: NotificacaoLocal,
+          where: filtroLocal, // 🔥 FILTRO FINAL APLICADO AQUI
+          attributes: ["SedeId", "FilhalId"],
+        },
+        {
+          model: Membros,
+          attributes: ["id", "nome", "foto", "data_nascimento"],
+        },
+      ],
       order: [["createdAt", "DESC"]],
     });
 
@@ -5773,8 +5849,6 @@ router.get("/aniversarios", auth, async (req, res) => {
     res.status(500).json({ message: "Erro interno ao verificar aniversários." });
   }
 });
-
-
 
 
 

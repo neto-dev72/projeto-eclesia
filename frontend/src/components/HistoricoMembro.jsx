@@ -6,19 +6,19 @@ import {
   IconButton,
   Grid,
   Divider,
+  Paper,
   Table,
   TableHead,
   TableBody,
   TableRow,
   TableCell,
-  Paper,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 
 export default function HistoricoMembro({ historico, onClose }) {
   if (!historico) return null;
 
-  const { status, totalGeral, quantidadeContribuicoes, resumoPorTipo, contribuicoes } = historico;
+  const { status, totalGeral, quantidadeContribuicoes, resumoPorTipoGeral, historicoPorMes } = historico;
 
   return (
     <Box sx={{ position: "relative", p: { xs: 3, md: 4 }, color: "#e6eef8" }}>
@@ -58,14 +58,14 @@ export default function HistoricoMembro({ historico, onClose }) {
 
       <Divider sx={{ borderColor: "rgba(255,255,255,0.1)", mb: 3 }} />
 
-      {/* Resumo por tipo */}
+      {/* Resumo Geral por Tipo */}
       <Box sx={{ mb: 4 }}>
         <Typography variant="h6" sx={{ mb: 2, color: "#e6eef8" }}>
-          Resumo por Tipo de Contribuição
+          Resumo Geral por Tipo de Contribuição
         </Typography>
         <Grid container spacing={2}>
-          {resumoPorTipo && resumoPorTipo.length > 0 ? (
-            resumoPorTipo.map((r, idx) => (
+          {resumoPorTipoGeral && resumoPorTipoGeral.length > 0 ? (
+            resumoPorTipoGeral.map((r, idx) => (
               <Grid item xs={12} sm={4} key={idx}>
                 <Paper
                   sx={{
@@ -75,13 +75,13 @@ export default function HistoricoMembro({ historico, onClose }) {
                     color: "#e6eef8",
                   }}
                 >
-                  <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600, color: "#e6eef8" }}>
+                  <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
                     {r.tipo || "-"}
                   </Typography>
-                  <Typography variant="body2" sx={{ color: "#e6eef8" }}>
+                  <Typography variant="body2">
                     Total: {r.total?.toLocaleString() || "0"}
                   </Typography>
-                  <Typography variant="body2" sx={{ color: "#e6eef8" }}>
+                  <Typography variant="body2">
                     Percentual: {r.percentual || "0%"}
                   </Typography>
                 </Paper>
@@ -93,43 +93,42 @@ export default function HistoricoMembro({ historico, onClose }) {
         </Grid>
       </Box>
 
-      {/* Tabela de contribuições */}
+      {/* Histórico por Ano/Mês */}
       <Box>
         <Typography variant="h6" sx={{ mb: 2, color: "#e6eef8" }}>
-          Detalhes das Contribuições
+          Histórico por Mês
         </Typography>
-        <Table sx={{ minWidth: 650 }} size="small">
-          <TableHead>
-            <TableRow>
-              <TableCell sx={{ color: "#e6eef8", fontWeight: 600 }}>Data</TableCell>
-              <TableCell sx={{ color: "#e6eef8", fontWeight: 600 }}>Tipo</TableCell>
-              <TableCell sx={{ color: "#e6eef8", fontWeight: 600 }}>Valor</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {contribuicoes && contribuicoes.length > 0 ? (
-              contribuicoes.map((c, idx) => {
-                const tipo = c.TipoContribuicao?.nome || "-";
-                const valor = c.valor ? parseFloat(c.valor).toLocaleString() : "-";
-                const data = c.data ? new Date(c.data).toLocaleDateString() : "-";
+        {historicoPorMes && historicoPorMes.length > 0 ? (
+          historicoPorMes.map((mesItem, idx) => (
+            <Box key={idx} sx={{ mb: 3, p: 2, borderRadius: 2, background: "rgba(255,255,255,0.03)" }}>
+              <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 600 }}>
+                {new Date(mesItem.mes + "-01").toLocaleString("pt-BR", { month: "long", year: "numeric" })} • Total Mensal: {mesItem.totalMensal.toLocaleString()}
+              </Typography>
 
-                return (
-                  <TableRow key={idx} sx={{ "&:last-child td, &:last-child th": { border: 0 } }}>
-                    <TableCell sx={{ color: "#e6eef8" }}>{data}</TableCell>
-                    <TableCell sx={{ color: "#e6eef8" }}>{tipo}</TableCell>
-                    <TableCell sx={{ color: "#e6eef8" }}>{valor}</TableCell>
+              {/* Tabela por Tipo dentro do mês */}
+              <Table size="small" sx={{ mb: 1 }}>
+                <TableHead>
+                  <TableRow>
+                    <TableCell sx={{ color: "#e6eef8", fontWeight: 600 }}>Tipo</TableCell>
+                    <TableCell sx={{ color: "#e6eef8", fontWeight: 600 }}>Total</TableCell>
+                    <TableCell sx={{ color: "#e6eef8", fontWeight: 600 }}>Percentual</TableCell>
                   </TableRow>
-                );
-              })
-            ) : (
-              <TableRow>
-                <TableCell colSpan={3} sx={{ textAlign: "center", color: "rgba(230,238,248,0.7)" }}>
-                  Nenhuma contribuição encontrada.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
+                </TableHead>
+                <TableBody>
+                  {mesItem.tipos.map((t, tidx) => (
+                    <TableRow key={tidx}>
+                      <TableCell sx={{ color: "#e6eef8" }}>{t.tipo}</TableCell>
+                      <TableCell sx={{ color: "#e6eef8" }}>{t.total.toLocaleString()}</TableCell>
+                      <TableCell sx={{ color: "#e6eef8" }}>{t.percentual}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </Box>
+          ))
+        ) : (
+          <Typography sx={{ color: "rgba(230,238,248,0.7)" }}>Nenhuma contribuição encontrada.</Typography>
+        )}
       </Box>
     </Box>
   );
