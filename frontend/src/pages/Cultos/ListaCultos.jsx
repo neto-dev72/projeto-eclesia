@@ -123,8 +123,10 @@ const cultosPorPagina = 4;
   const [cultoEditando, setCultoEditando] = useState(null);
   const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
 
-  // theme mode
-  const [mode, setMode] = useState("dark");
+  
+// theme mode
+const [mode, setMode] = useState("light"); // Modo claro por padrão
+
 
   // load Google font (Poppins) dynamically once
   useEffect(() => {

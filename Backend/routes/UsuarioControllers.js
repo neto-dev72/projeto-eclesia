@@ -3091,6 +3091,28 @@ router.post('/detalhes-cultos', auth, async (req, res) => {
 });
 
 
+// DELETE contribuição individual
+router.delete('/detalhes-cultos/:cultoId/contribuicao', auth, async (req, res) => {
+  const { cultoId } = req.params;
+  const { tipoId, membroId } = req.body;
+
+  try {
+    await Contribuicao.destroy({
+      where: {
+        CultoId: cultoId,
+        TipoContribuicaoId: tipoId,
+        MembroId: membroId
+      }
+    });
+
+    res.json({ message: "Contribuição removida com sucesso." });
+  } catch (error) {
+    console.error("Erro ao remover contribuição:", error);
+    res.status(500).json({ error: "Erro ao remover contribuição." });
+  }
+});
+
+
 
 
 
@@ -3490,11 +3512,11 @@ router.get('/dashboard', auth, async (req, res) => {
     // 3️⃣ TOTAL DE CONTRIBUIÇÕES (MÊS)
     // -----------------------------
     const totalContribuicoesMes = (await Contribuicao.sum("valor", {
-      where: { ...filtroHierarquia, data: { [Op.between]: [inicioMes, fimMes] } },
+      where: { ...filtroHierarquia },
     })) || 0;
 
     // -----------------------------
-    // 4️⃣ DESPESAS (MÊS)
+    // 4️⃣ DESPESAS
     // -----------------------------
     const totalDespesasMes = (await Despesa.sum("valor", {
   where: { ...filtroHierarquia }
@@ -3688,11 +3710,11 @@ router.get('/graficos', auth, async (req, res) => {
     const fimMes = dayjs().endOf('month').toDate();
 
     const totalContribuicoesMes = await Contribuicao.sum('valor', {
-      where: { ...filtroHierarquia, data: { [Op.between]: [inicioMes, fimMes] } }
+      where: { ...filtroHierarquia }
     }) || 0;
 
     const totalDespesasMes = await Despesa.sum('valor', {
-      where: { ...filtroHierarquia, data: { [Op.between]: [inicioMes, fimMes] } }
+      where: { ...filtroHierarquia }
     }) || 0;
 
     // --------------------------------------------------------

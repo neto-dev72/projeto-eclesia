@@ -31,6 +31,8 @@ import {
   ExpandMore,
 } from "@mui/icons-material";
 import api from "../api/axiosConfig";
+import { DeleteSweepRounded } from "@mui/icons-material";
+
 
 export default function FormCultos({ culto, onSuccess, onCancel }) {
   const [tiposCulto, setTiposCulto] = useState([]);
@@ -126,6 +128,44 @@ useEffect(() => {
 
 
 
+    // Remover contribuição por membro
+const handleRemoveMembroContribuicao = async (tipoId, membroId) => {
+  setFormData(prev => {
+    const copia = { ...prev.membrosContribuicoes };
+    if (copia[tipoId]) {
+      delete copia[tipoId][membroId];
+
+      // recalcular total do tipo
+      const valorGeral = prev.contribuicoes[tipoId] || 0;
+      const totalMembros = Object.values(copia[tipoId] || {}).reduce((a,b)=>a+b,0);
+
+      return {
+        ...prev,
+        membrosContribuicoes: copia,
+        contribuicoes: {
+          ...prev.contribuicoes,
+          [tipoId]: totalMembros + valorGeral
+        }
+      };
+    }
+    return prev;
+  });
+
+  // 👉 Se estiver editando, faz request para deletar no backend
+  if (isEdit) {
+    try {
+      await api.delete(`/detalhes-cultos/${culto.id}/contribuicao`, {
+        data: { tipoId, membroId }
+      });
+    } catch (error) {
+      console.error("Erro ao remover contribuição no servidor:", error);
+    }
+  }
+};
+
+
+
+
   const handleChange = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
@@ -159,6 +199,11 @@ const handleAddMembroContribuicao = () => {
 
     // Total = geral + todos os membros
     const totalGeral = valorGeral + totalMembros;
+
+
+
+
+
 
     return {
       ...prev,
@@ -370,16 +415,28 @@ const handleAddMembroContribuicao = () => {
 
                     {formData.membrosContribuicoes[tipo.id] && (
                       <Table size="small" sx={{ mt: 2 }}>
-                        <TableHead>
-                          <TableRow sx={{ backgroundColor: "#f0f0f0" }}>
-                            <TableCell>
-                              <b>Membro</b>
-                            </TableCell>
-                            <TableCell>
-                              <b>Valor (Kz)</b>
-                            </TableCell>
-                          </TableRow>
-                        </TableHead>
+                      <TableHead>
+  <TableRow
+    sx={{
+      background: "rgba(255, 255, 255, 0.6)",
+      backdropFilter: "blur(8px)",
+      boxShadow: "0 4px 12px rgba(0,0,0,0.05)",
+    }}
+  >
+    <TableCell>
+      <Typography fontWeight="bold" sx={{ fontSize: "1rem", color: "#334" }}>
+        Membro
+      </Typography>
+    </TableCell>
+    <TableCell>
+      <Typography fontWeight="bold" sx={{ fontSize: "1rem", color: "#334" }}>
+        Valor (Kz)
+      </Typography>
+    </TableCell>
+    <TableCell></TableCell>
+  </TableRow>
+</TableHead>
+
                         <TableBody>
                           {Object.entries(
                             formData.membrosContribuicoes[tipo.id]
@@ -389,15 +446,59 @@ const handleAddMembroContribuicao = () => {
                             );
                             return (
                               <TableRow key={membroId} hover>
-                                <TableCell>{membro?.nome}</TableCell>
-                                <TableCell>
-                                  <Chip
-                                    label={`${valor} Kz`}
-                                    color="success"
-                                    variant="outlined"
-                                  />
-                                </TableCell>
-                              </TableRow>
+<TableCell
+  sx={{
+    fontWeight: 700,
+    color: "#2c2f36",
+    fontSize: "0.95rem",
+    letterSpacing: "0.4px",
+    py: 2,
+    textTransform: "capitalize",
+  }}
+>
+  {membro?.nome}
+</TableCell>
+
+<TableCell>
+  <Chip
+    label={`${valor} Kz`}
+    sx={{
+      fontWeight: 600,
+      fontSize: "0.88rem",
+      px: 2.5,
+      py: 1.2,
+      borderRadius: "16px",
+      background: "linear-gradient(145deg, #e0f2f1, #b2dfdb)",
+      border: "1px solid rgba(0, 150, 136, 0.25)",
+      color: "#004d40",
+      boxShadow: "0 4px 12px rgba(0, 0, 0, 0.08)",
+      transition: "transform 0.2s, box-shadow 0.2s",
+      "&:hover": {
+        transform: "translateY(-2px)",
+        boxShadow: "0 6px 16px rgba(0, 0, 0, 0.12)",
+      },
+      "& .MuiChip-label": {
+        padding: 0,
+      },
+    }}
+  />
+</TableCell>
+
+
+  <TableCell align="right">
+   <Button
+  color="error"
+  variant="text"
+  startIcon={<DeleteSweepRounded />}
+  onClick={() => handleRemoveMembroContribuicao(tipo.id, parseInt(membroId))}
+  sx={{ fontWeight: "bold" }}
+>
+  Remover
+</Button>
+
+  </TableCell>
+</TableRow>
+
                             );
                           })}
                         </TableBody>
