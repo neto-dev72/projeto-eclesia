@@ -124,6 +124,11 @@ const cultosPorPagina = 4;
   const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
 
   
+  // ID do culto que vai ser deletado
+const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+const [cultoParaDeletar, setCultoParaDeletar] = useState(null);
+
+
 // theme mode
 const [mode, setMode] = useState("light"); // Modo claro por padrão
 
@@ -508,10 +513,17 @@ const mudarPaginaCultos = (idGrupo, novaPagina, totalCultos) => {
                 </IconButton>
               </Tooltip>
               <Tooltip title="Excluir">
-                <IconButton size="small" onClick={() => deletarCulto(c.id)}>
-                  <DeleteIcon color="error" fontSize="small" />
-                </IconButton>
-              </Tooltip>
+  <IconButton
+    size="small"
+    onClick={() => {
+      setCultoParaDeletar(c.id);
+      setDeleteModalOpen(true);
+    }}
+  >
+    <DeleteIcon color="error" fontSize="small" />
+  </IconButton>
+</Tooltip>
+
             </Box>
           </Box>
         </TimelineContent>
@@ -744,6 +756,40 @@ const mudarPaginaCultos = (idGrupo, novaPagina, totalCultos) => {
     </Button>
   </Box>
 </Dialog>
+
+<Dialog
+  open={deleteModalOpen}
+  onClose={() => setDeleteModalOpen(false)}
+  maxWidth="xs"
+  fullWidth
+>
+  <DialogTitle>Confirmar exclusão</DialogTitle>
+  <DialogContent>
+    <Typography>
+      Tem certeza que deseja excluir este culto? Esta ação não pode ser desfeita.
+    </Typography>
+  </DialogContent>
+  <DialogActions>
+    <Button onClick={() => setDeleteModalOpen(false)} color="inherit">
+      Cancelar
+    </Button>
+    <Button
+      variant="contained"
+      color="error"
+      onClick={async () => {
+        try {
+          await deletarCulto(cultoParaDeletar);
+        } finally {
+          setDeleteModalOpen(false);
+          setCultoParaDeletar(null);
+        }
+      }}
+    >
+      Excluir
+    </Button>
+  </DialogActions>
+</Dialog>
+
 
         </Container>
       </Box>
