@@ -174,6 +174,36 @@ const relatoriosFinanceirosSub = [
         {/* Menus visitantes */}
         {!userRole && (
           <>
+         <ListItem sx={{ padding: 0 }}>
+ 
+
+<ListItem sx={{ padding: 0 }}>
+  <Button
+    component={Link}
+    to="/criar/conta/membro"
+    onClick={toggleDrawer(false)}
+    sx={{
+      width: '100%',
+      background: 'linear-gradient(135deg, #5CC8FF, #4A90E2)', // azul bebê forte
+      color: 'white',
+      fontWeight: 'bold',
+      fontSize: '1.05rem',
+      borderRadius: 5,
+      paddingY: 1.5,
+      textTransform: 'none',
+      boxShadow: '0 8px 20px rgba(0,0,0,0.15)',
+      transition: 'all 0.3s ease',
+      '&:hover': {
+        background: 'linear-gradient(135deg, #4A90E2, #5CC8FF)',
+        transform: 'translateY(-3px)',
+        boxShadow: '0 12px 25px rgba(0,0,0,0.25)',
+      },
+    }}
+  >
+    Criar conta de Membro
+  </Button>
+</ListItem>
+</ListItem>
             <ListItem button component={Link} to="/" onClick={toggleDrawer(false)}>
               <ListItemIcon sx={{ color: 'white' }}><HomeIcon /></ListItemIcon>
               <ListItemText primary="Início" sx={{ color: 'white' }} />
@@ -210,180 +240,183 @@ const relatoriosFinanceirosSub = [
         )}
 
         {/* Menus usuários logados */}
-        {userRole && (
-          <>
-            {/* Super admin */}
-            {userRole === 'super_admin' && (
-              <>
-                <ListItem button component={Link} to="/" onClick={toggleDrawer(false)}>
-                  <ListItemIcon sx={{ color: 'white' }}><HomeIcon /></ListItemIcon>
-                  <ListItemText primary="Início" sx={{ color: 'white' }} />
-                </ListItem>
-                <ListItem button component={Link} to="/gestao/gestaoigrejas" onClick={toggleDrawer(false)}>
-                  <ListItemIcon sx={{ color: 'white' }}><AccountBalanceIcon /></ListItemIcon>
-                  <ListItemText primary="Gerir Igrejas" sx={{ color: 'white' }} />
-                </ListItem>
+       {userRole && (
+  <>
+    {/* Super admin */}
+    {userRole === 'super_admin' && (
+      <>
+        <ListItem button component={Link} to="/" onClick={toggleDrawer(false)}>
+          <ListItemIcon sx={{ color: 'white' }}><HomeIcon /></ListItemIcon>
+          <ListItemText primary="Início" sx={{ color: 'white' }} />
+        </ListItem>
+        <ListItem button component={Link} to="/gestao/gestaoigrejas" onClick={toggleDrawer(false)}>
+          <ListItemIcon sx={{ color: 'white' }}><AccountBalanceIcon /></ListItemIcon>
+          <ListItemText primary="Gerir Igrejas" sx={{ color: 'white' }} />
+        </ListItem>
 
-                {/* Usuário */}
-                <ListItem button onClick={() => setUserOpenMobile(!userOpenMobile)} sx={{ bgcolor: '#ff9800', borderRadius: 2, my: 1 }}>
-                  <ListItemIcon sx={{ color: 'white' }}><AccountCircleIcon /></ListItemIcon>
-                  <ListItemText primary="Usuário" sx={{ color: 'white' }} />
-                  {userOpenMobile ? <ExpandLess sx={{ color: 'white' }} /> : <ExpandMore sx={{ color: 'white' }} />}
-                </ListItem>
-                <Collapse in={userOpenMobile} timeout="auto" unmountOnExit>
-                  <List component="div" disablePadding>
-                    <ListItem button component={Link} to="/perfil" sx={{ pl: 4 }} onClick={toggleDrawer(false)}>
-                      <ListItemIcon sx={{ color: 'white' }}><AccountCircleIcon /></ListItemIcon>
-                      <ListItemText primary="Perfil" sx={{ color: 'white' }} />
-                    </ListItem>
-                    <ListItem button sx={{ pl: 4 }} onClick={() => { toggleDrawer(false)(); handleLogout(); }}>
-                      <ListItemIcon sx={{ color: 'white' }}><LoginIcon /></ListItemIcon>
-                      <ListItemText primary="Terminar Sessão" sx={{ color: 'white' }} />
-                    </ListItem>
-                  </List>
-                </Collapse>
-              </>
-            )}
+        <ListItem button onClick={() => setUserOpenMobile(!userOpenMobile)} sx={{ bgcolor: '#ff9800', borderRadius: 2, my: 1 }}>
+          <ListItemIcon sx={{ color: 'white' }}><AccountCircleIcon /></ListItemIcon>
+          <ListItemText primary="Usuário" sx={{ color: 'white' }} />
+          {userOpenMobile ? <ExpandLess sx={{ color: 'white' }} /> : <ExpandMore sx={{ color: 'white' }} />}
+        </ListItem>
+        <Collapse in={userOpenMobile} timeout="auto" unmountOnExit>
+          <List component="div" disablePadding>
+            <ListItem button component={Link} to="/perfil" sx={{ pl: 4 }} onClick={toggleDrawer(false)}>
+              <ListItemIcon sx={{ color: 'white' }}><AccountCircleIcon /></ListItemIcon>
+              <ListItemText primary="Perfil" sx={{ color: 'white' }} />
+            </ListItem>
+            <ListItem button sx={{ pl: 4 }} onClick={() => { toggleDrawer(false)(); handleLogout(); }}>
+              <ListItemIcon sx={{ color: 'white' }}><LoginIcon /></ListItemIcon>
+              <ListItemText primary="Terminar Sessão" sx={{ color: 'white' }} />
+            </ListItem>
+          </List>
+        </Collapse>
+      </>
+    )}
 
-            {/* Admin */}
-            {userRole !== 'super_admin' && (
-              <>
-                <ListItem button component={Link} to="/" onClick={toggleDrawer(false)}>
-                  <ListItemIcon sx={{ color: 'white' }}><HomeIcon /></ListItemIcon>
-                  <ListItemText primary="Início" sx={{ color: 'white' }} />
-                </ListItem>
-{userRole === 'admin' && <NotificationBell userRole={userRole} />}
+    {/* Admin */}
+    {userRole === 'admin' && (
+      <>
+        <ListItem button component={Link} to="/" onClick={toggleDrawer(false)}>
+          <ListItemIcon sx={{ color: 'white' }}><HomeIcon /></ListItemIcon>
+          <ListItemText primary="Início" sx={{ color: 'white' }} />
+        </ListItem>
+        <NotificationBell userRole={userRole} />
 
-                <ListItem button component={Link} to="/dashboard" onClick={toggleDrawer(false)}>
-                  <ListItemIcon sx={{ color: 'white' }}><BarChartIcon /></ListItemIcon>
-                  <ListItemText primary="Dashboard" sx={{ color: 'white' }} />
-                </ListItem>
+        <ListItem button component={Link} to="/dashboard" onClick={toggleDrawer(false)}>
+          <ListItemIcon sx={{ color: 'white' }}><BarChartIcon /></ListItemIcon>
+          <ListItemText primary="Dashboard" sx={{ color: 'white' }} />
+        </ListItem>
 
-                <ListItem button component={Link} to="/listaCultos" sx={{ bgcolor: '#ff4081', borderRadius: 2, my: 1 }}>
-                  <ListItemIcon sx={{ color: 'white' }}><EventIcon /></ListItemIcon>
-                  <ListItemText primary="Registrar Culto" sx={{ color: 'white', fontWeight: 'bold' }} />
-                </ListItem>
-{/* EVENTOS */}
-<ListItem button onClick={() => setGestaoOpenMobile(!gestaoOpenMobile)}>
-  <ListItemIcon sx={{ color: 'white' }}><EventIcon /></ListItemIcon>
-  <ListItemText primary="Eventos" sx={{ color: 'white' }} />
-  {gestaoOpenMobile ? <ExpandLess sx={{ color: 'white' }} /> : <ExpandMore sx={{ color: 'white' }} />}
-</ListItem>
-<Collapse in={gestaoOpenMobile} timeout="auto" unmountOnExit>
-  <List component="div" disablePadding>
-    {eventosSubmenus.map((submenu) => (
-      <ListItem
-        button
-        component={Link}
-        to={submenu.path}
-        key={submenu.path}
-        sx={{ pl: 4 }}
-        onClick={toggleDrawer(false)}
-      >
-        <ListItemIcon sx={{ color: 'white' }}>{submenu.icon}</ListItemIcon>
-        <ListItemText primary={submenu.label} sx={{ color: 'white' }} />
-      </ListItem>
-    ))}
-  </List>
-</Collapse>
+        <ListItem button component={Link} to="/listaCultos" sx={{ bgcolor: '#ff4081', borderRadius: 2, my: 1 }}>
+          <ListItemIcon sx={{ color: 'white' }}><EventIcon /></ListItemIcon>
+          <ListItemText primary="Registrar Culto" sx={{ color: 'white', fontWeight: 'bold' }} />
+        </ListItem>
 
-{/* MEMBROS */}
-<ListItem button onClick={() => setMembrosOpenMobile(!membrosOpenMobile)}>
-  <ListItemIcon sx={{ color: 'white' }}><PeopleIcon /></ListItemIcon>
-  <ListItemText primary="Membros" sx={{ color: 'white' }} />
-  {membrosOpenMobile ? <ExpandLess sx={{ color: 'white' }} /> : <ExpandMore sx={{ color: 'white' }} />}
-</ListItem>
-<Collapse in={membrosOpenMobile} timeout="auto" unmountOnExit>
-  <List component="div" disablePadding>
-    {membrosSubmenus.map((submenu) => (
-      <ListItem
-        button
-        component={Link}
-        to={submenu.path}
-        key={submenu.path}
-        sx={{ pl: 4 }}
-        onClick={toggleDrawer(false)}
-      >
-        <ListItemIcon sx={{ color: 'white' }}>{submenu.icon}</ListItemIcon>
-        <ListItemText primary={submenu.label} sx={{ color: 'white' }} />
-      </ListItem>
-    ))}
-  </List>
-</Collapse>
+        <ListItem button onClick={() => setGestaoOpenMobile(!gestaoOpenMobile)}>
+          <ListItemIcon sx={{ color: 'white' }}><EventIcon /></ListItemIcon>
+          <ListItemText primary="Eventos" sx={{ color: 'white' }} />
+          {gestaoOpenMobile ? <ExpandLess sx={{ color: 'white' }} /> : <ExpandMore sx={{ color: 'white' }} />}
+        </ListItem>
+        <Collapse in={gestaoOpenMobile} timeout="auto" unmountOnExit>
+          <List component="div" disablePadding>
+            {eventosSubmenus.map((submenu) => (
+              <ListItem
+                button
+                component={Link}
+                to={submenu.path}
+                key={submenu.path}
+                sx={{ pl: 4 }}
+                onClick={toggleDrawer(false)}
+              >
+                <ListItemIcon sx={{ color: 'white' }}>{submenu.icon}</ListItemIcon>
+                <ListItemText primary={submenu.label} sx={{ color: 'white' }} />
+              </ListItem>
+            ))}
+          </List>
+        </Collapse>
 
-{/* FINANÇAS */}
-<ListItem button onClick={() => setFinanceiroOpenMobile(!financeiroOpenMobile)}>
-  <ListItemIcon sx={{ color: 'white' }}><AttachMoneyIcon /></ListItemIcon>
-  <ListItemText primary="Finanças" sx={{ color: 'white' }} />
-  {financeiroOpenMobile ? <ExpandLess sx={{ color: 'white' }} /> : <ExpandMore sx={{ color: 'white' }} />}
-</ListItem>
-<Collapse in={financeiroOpenMobile} timeout="auto" unmountOnExit>
-  <List component="div" disablePadding>
-    {financasSubmenus.map((submenu) => (
-      <ListItem
-        button
-        component={Link}
-        to={submenu.path}
-        key={submenu.path}
-        sx={{ pl: 4 }}
-        onClick={toggleDrawer(false)}
-      >
-        <ListItemIcon sx={{ color: 'white' }}>{submenu.icon}</ListItemIcon>
-        <ListItemText primary={submenu.label} sx={{ color: 'white' }} />
-      </ListItem>
-    ))}
+        <ListItem button onClick={() => setMembrosOpenMobile(!membrosOpenMobile)}>
+          <ListItemIcon sx={{ color: 'white' }}><PeopleIcon /></ListItemIcon>
+          <ListItemText primary="Membros" sx={{ color: 'white' }} />
+          {membrosOpenMobile ? <ExpandLess sx={{ color: 'white' }} /> : <ExpandMore sx={{ color: 'white' }} />}
+        </ListItem>
+        <Collapse in={membrosOpenMobile} timeout="auto" unmountOnExit>
+          <List component="div" disablePadding>
+            {membrosSubmenus.map((submenu) => (
+              <ListItem
+                button
+                component={Link}
+                to={submenu.path}
+                key={submenu.path}
+                sx={{ pl: 4 }}
+                onClick={toggleDrawer(false)}
+              >
+                <ListItemIcon sx={{ color: 'white' }}>{submenu.icon}</ListItemIcon>
+                <ListItemText primary={submenu.label} sx={{ color: 'white' }} />
+              </ListItem>
+            ))}
+          </List>
+        </Collapse>
 
-    {/* Relatórios dentro de Finanças */}
-    <ListItem button onClick={() => setRelatoriosOpenMobile(!relatoriosOpenMobile)} sx={{ pl: 4 }}>
-      <ListItemIcon sx={{ color: 'white' }}><AssessmentIcon /></ListItemIcon>
-      <ListItemText primary="Relatórios" sx={{ color: 'white' }} />
-      {relatoriosOpenMobile ? <ExpandLess sx={{ color: 'white' }} /> : <ExpandMore sx={{ color: 'white' }} />}
-    </ListItem>
-    <Collapse in={relatoriosOpenMobile} timeout="auto" unmountOnExit>
-      <List component="div" disablePadding>
-        {relatoriosFinanceirosSub.map((submenu) => (
-          <ListItem
-            button
-            component={Link}
-            to={submenu.path}
-            key={submenu.path}
-            sx={{ pl: 8 }}
-            onClick={toggleDrawer(false)}
-          >
-            <ListItemIcon sx={{ color: 'white' }}>{submenu.icon}</ListItemIcon>
-            <ListItemText primary={submenu.label} sx={{ color: 'white' }} />
-          </ListItem>
-        ))}
-      </List>
-    </Collapse>
-  </List>
-</Collapse>
+        <ListItem button onClick={() => setFinanceiroOpenMobile(!financeiroOpenMobile)}>
+          <ListItemIcon sx={{ color: 'white' }}><AttachMoneyIcon /></ListItemIcon>
+          <ListItemText primary="Finanças" sx={{ color: 'white' }} />
+          {financeiroOpenMobile ? <ExpandLess sx={{ color: 'white' }} /> : <ExpandMore sx={{ color: 'white' }} />}
+        </ListItem>
+        <Collapse in={financeiroOpenMobile} timeout="auto" unmountOnExit>
+          <List component="div" disablePadding>
+            {financasSubmenus.map((submenu) => (
+              <ListItem
+                button
+                component={Link}
+                to={submenu.path}
+                key={submenu.path}
+                sx={{ pl: 4 }}
+                onClick={toggleDrawer(false)}
+              >
+                <ListItemIcon sx={{ color: 'white' }}>{submenu.icon}</ListItemIcon>
+                <ListItemText primary={submenu.label} sx={{ color: 'white' }} />
+              </ListItem>
+            ))}
 
+            <ListItem button onClick={() => setRelatoriosOpenMobile(!relatoriosOpenMobile)} sx={{ pl: 4 }}>
+              <ListItemIcon sx={{ color: 'white' }}><AssessmentIcon /></ListItemIcon>
+              <ListItemText primary="Relatórios" sx={{ color: 'white' }} />
+              {relatoriosOpenMobile ? <ExpandLess sx={{ color: 'white' }} /> : <ExpandMore sx={{ color: 'white' }} />}
+            </ListItem>
+            <Collapse in={relatoriosOpenMobile} timeout="auto" unmountOnExit>
+              <List component="div" disablePadding>
+                {relatoriosFinanceirosSub.map((submenu) => (
+                  <ListItem
+                    button
+                    component={Link}
+                    to={submenu.path}
+                    key={submenu.path}
+                    sx={{ pl: 8 }}
+                    onClick={toggleDrawer(false)}
+                  >
+                    <ListItemIcon sx={{ color: 'white' }}>{submenu.icon}</ListItemIcon>
+                    <ListItemText primary={submenu.label} sx={{ color: 'white' }} />
+                  </ListItem>
+                ))}
+              </List>
+            </Collapse>
+          </List>
+        </Collapse>
 
+        <Divider sx={{ bgcolor: 'rgba(255,255,255,0.3)', my: 1 }} />
+        <ListItem button onClick={() => setUserOpenMobile(!userOpenMobile)} sx={{ bgcolor: '#ff9800', borderRadius: 2, my: 1 }}>
+          <ListItemIcon sx={{ color: 'white' }}><AccountCircleIcon /></ListItemIcon>
+          <ListItemText primary="Usuário" sx={{ color: 'white' }} />
+          {userOpenMobile ? <ExpandLess sx={{ color: 'white' }} /> : <ExpandMore sx={{ color: 'white' }} />}
+        </ListItem>
+        <Collapse in={userOpenMobile} timeout="auto" unmountOnExit>
+          <List component="div" disablePadding>
+            <ListItem button component={Link} to="/perfil" sx={{ pl: 4 }} onClick={toggleDrawer(false)}>
+              <ListItemIcon sx={{ color: 'white' }}><AccountCircleIcon /></ListItemIcon>
+              <ListItemText primary="Perfil" sx={{ color: 'white' }} />
+            </ListItem>
+            <ListItem button sx={{ pl: 4 }} onClick={() => { toggleDrawer(false)(); handleLogout(); }}>
+              <ListItemIcon sx={{ color: 'white' }}><LoginIcon /></ListItemIcon>
+              <ListItemText primary="Terminar Sessão" sx={{ color: 'white' }} />
+            </ListItem>
+          </List>
+        </Collapse>
+      </>
+    )}
 
-                {/* Usuário */}
-                <Divider sx={{ bgcolor: 'rgba(255,255,255,0.3)', my: 1 }} />
-                <ListItem button onClick={() => setUserOpenMobile(!userOpenMobile)} sx={{ bgcolor: '#ff9800', borderRadius: 2, my: 1 }}>
-                  <ListItemIcon sx={{ color: 'white' }}><AccountCircleIcon /></ListItemIcon>
-                  <ListItemText primary="Usuário" sx={{ color: 'white' }} />
-                  {userOpenMobile ? <ExpandLess sx={{ color: 'white' }} /> : <ExpandMore sx={{ color: 'white' }} />}
-                </ListItem>
-                <Collapse in={userOpenMobile} timeout="auto" unmountOnExit>
-                  <List component="div" disablePadding>
-                    <ListItem button component={Link} to="/perfil" sx={{ pl: 4 }} onClick={toggleDrawer(false)}>
-                      <ListItemIcon sx={{ color: 'white' }}><AccountCircleIcon /></ListItemIcon>
-                      <ListItemText primary="Perfil" sx={{ color: 'white' }} />
-                    </ListItem>
-                    <ListItem button sx={{ pl: 4 }} onClick={() => { toggleDrawer(false)(); handleLogout(); }}>
-                      <ListItemIcon sx={{ color: 'white' }}><LoginIcon /></ListItemIcon>
-                      <ListItemText primary="Terminar Sessão" sx={{ color: 'white' }} />
-                    </ListItem>
-                  </List>
-                </Collapse>
-              </>
-            )}
-          </>
-        )}
+    {/* Membro */}
+    {userRole === 'membro' && (
+  <>
+    <Button component={Link} to="/cadastro/membro" startIcon={<PeopleIcon />} sx={{ mx: 1, color: 'white' }}>Cadastro</Button>
+    <Button component={Link} to="/perfil/membro" startIcon={<AccountCircleIcon />} sx={{ mx: 1, color: 'white' }}>Meu Perfil</Button>
+  </>
+)}
+
+  </>
+)}
+
       </List>
     </Box>
   );
@@ -426,158 +459,133 @@ const relatoriosFinanceirosSub = [
     }}
   />
 </Box>
-
-          {/* Desktop Navbar */}
-          {!isMobile && !userRole && (
-            <>
-              <Button color="inherit" component={Link} to="/" startIcon={<HomeIcon />} sx={{ mx: 1 }}>Início</Button>
-              <Button color="inherit" component={Link} to="/sobre-equipe" startIcon={<PeopleIcon />} sx={{ mx: 1 }}>Sobre a Equipe</Button>
-              <Button color="inherit" component={Link} to="/planos" startIcon={<AccountBalanceIcon />} sx={{ mx: 1 }}>Planos</Button>
-              <Button color="inherit" component={Link} to="/testemunhos" startIcon={<AssessmentIcon />} sx={{ mx: 1 }}>Testemunhos</Button>
-              <Button color="inherit" component={Link} to="/contato" startIcon={<WorkIcon />} sx={{ mx: 1 }}>Contato</Button>
-
-              <Button color="inherit" component={Link} to="/servicos" startIcon={<BuildIcon />} sx={{ mx: 1 }}>Serviços</Button>
-              
-              <Button component={Link} to="/login" startIcon={<AccountCircleIcon />} sx={{ mx: 1, bgcolor: '#ff9800', color: 'white' }}>Login</Button>
-              <Button component={Link} to="/criar-usuarios" startIcon={<AccountBalanceIcon />} sx={{ mx: 1, bgcolor: '#0056d2', color: 'white' }}>Inscreva  a Sua Igreja</Button>
-            </>
-          )}
-
-          {!isMobile && userRole && (
-            <>
-              {userRole === 'super_admin' && (
-                <>
-                  <Button component={Link} to="/" startIcon={<HomeIcon />} sx={{ mx: 1, color: 'white' }}>Início</Button>
-                  <Button component={Link} to="/gestao/gestaoigrejas" startIcon={<AccountBalanceIcon />} sx={{ mx: 1, bgcolor: '#0056d2', color: 'white' }}>Gerir Igrejas</Button>
-
-                  {/* Usuário */}
-                  <Button onClick={handleOpenMenu(setUserAnchor)} startIcon={<AccountCircleIcon />} sx={{ mx: 1, bgcolor: '#ff9800', color: 'white' }}>Usuário</Button>
-                  <Menu anchorEl={userAnchor} open={Boolean(userAnchor)} onClose={handleCloseMenu(setUserAnchor)} PaperProps={{ sx: { bgcolor: '#1e3a8a', color: 'white' } }}>
-                    <MenuItem component={Link} to="/perfil" onClick={handleCloseMenu(setUserAnchor)} sx={{ color: 'white' }}>Perfil</MenuItem>
-                    <MenuItem onClick={() => { handleLogout(); handleCloseMenu(setUserAnchor)(); }} sx={{ color: 'white' }}>Terminar Sessão</MenuItem>
-                  </Menu>
-                </>
-              )}
-
-              {userRole !== 'super_admin' && (
-                <>
-                  <Button component={Link} to="/listaCultos" startIcon={<EventIcon />} sx={{ mx: 1, bgcolor: '#ff4081', color: 'white' }}>Registrar Culto</Button>
-
-
-
-                  <Button component={Link} to="/" startIcon={<HomeIcon />} sx={{ mx: 1, color: 'white' }}>Início</Button>
-                  <Button component={Link} to="/dashboard" startIcon={<BarChartIcon />} sx={{ mx: 1, color: 'white' }}>Dashboard</Button>
-
-                  {userRole === 'admin' && <NotificationBell userRole={userRole} />}
-
-{/* EVENTOS */}
-<Button
-  onClick={handleOpenMenu(setGestaoAnchor)}
-  startIcon={<EventIcon />}
-  sx={{ mx: 1, color: 'white' }}
+{/* Desktop Navbar */}
+{!isMobile && !userRole && (
+  <>
+ <Button
+  component={Link}
+  to="/criar/conta/membro"
+  sx={{
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: '1rem',
+    textTransform: 'none',
+    mx: 1,
+    px: 3,
+    py: 1.2,
+    borderRadius: 5,
+    background: 'linear-gradient(135deg, #5CC8FF, #4A90E2)',
+    boxShadow: '0 6px 18px rgba(0,0,0,0.15)',
+    transition: 'all 0.3s ease',
+    '&:hover': {
+      background: 'linear-gradient(135deg, #4A90E2, #5CC8FF)',
+      transform: 'translateY(-2px)',
+      boxShadow: '0 10px 25px rgba(0,0,0,0.25)',
+    },
+  }}
 >
-  Eventos
+  Criar conta de Membro
 </Button>
-<Menu
-  anchorEl={gestaoAnchor}
-  open={Boolean(gestaoAnchor)}
-  onClose={handleCloseMenu(setGestaoAnchor)}
-  PaperProps={{ sx: { bgcolor: '#1e3a8a', color: 'white' } }}
->
-  {eventosSubmenus.map((submenu) => (
-    <MenuItem
-      component={Link}
-      to={submenu.path}
-      key={submenu.path}
-      onClick={handleCloseMenu(setGestaoAnchor)}
-      sx={{ color: 'white' }}
-    >
-      {submenu.icon}&nbsp;{submenu.label}
-    </MenuItem>
-  ))}
-</Menu>
 
-{/* MEMBROS */}
-<Button
-  onClick={handleOpenMenu(setMembrosAnchor)}
-  startIcon={<PeopleIcon />}
-  sx={{ mx: 1, color: 'white' }}
->
-  Membros
-</Button>
-<Menu
-  anchorEl={membrosAnchor}
-  open={Boolean(membrosAnchor)}
-  onClose={handleCloseMenu(setMembrosAnchor)}
-  PaperProps={{ sx: { bgcolor: '#1e3a8a', color: 'white' } }}
->
-  {membrosSubmenus.map((submenu) => (
-    <MenuItem
-      component={Link}
-      to={submenu.path}
-      key={submenu.path}
-      onClick={handleCloseMenu(setMembrosAnchor)}
-      sx={{ color: 'white' }}
-    >
-      {submenu.icon}&nbsp;{submenu.label}
-    </MenuItem>
-  ))}
-</Menu>
 
-{/* FINANÇAS */}
-<Button
-  onClick={handleOpenMenu(setFinanceiroAnchor)}
-  startIcon={<AttachMoneyIcon />}
-  sx={{ mx: 1, color: 'white' }}
->
-  Finanças
-</Button>
-<Menu
-  anchorEl={financeiroAnchor}
-  open={Boolean(financeiroAnchor)}
-  onClose={handleCloseMenu(setFinanceiroAnchor)}
-  PaperProps={{ sx: { bgcolor: '#1e3a8a', color: 'white' } }}
->
-  {financasSubmenus.map((submenu) => (
-    <MenuItem
-      component={Link}
-      to={submenu.path}
-      key={submenu.path}
-      onClick={handleCloseMenu(setFinanceiroAnchor)}
-      sx={{ color: 'white' }}
-    >
-      {submenu.icon}&nbsp;{submenu.label}
-    </MenuItem>
-  ))}
+    <Button color="inherit" component={Link} to="/" startIcon={<HomeIcon />} sx={{ mx: 1 }}>Início</Button>
+    <Button color="inherit" component={Link} to="/sobre-equipe" startIcon={<PeopleIcon />} sx={{ mx: 1 }}>Sobre a Equipe</Button>
+    <Button color="inherit" component={Link} to="/planos" startIcon={<AccountBalanceIcon />} sx={{ mx: 1 }}>Planos</Button>
+    <Button color="inherit" component={Link} to="/testemunhos" startIcon={<AssessmentIcon />} sx={{ mx: 1 }}>Testemunhos</Button>
+    <Button color="inherit" component={Link} to="/contato" startIcon={<WorkIcon />} sx={{ mx: 1 }}>Contato</Button>
+    <Button color="inherit" component={Link} to="/servicos" startIcon={<BuildIcon />} sx={{ mx: 1 }}>Serviços</Button>
+    <Button component={Link} to="/login" startIcon={<AccountCircleIcon />} sx={{ mx: 1, bgcolor: '#ff9800', color: 'white' }}>Login</Button>
+    <Button component={Link} to="/criar-usuarios" startIcon={<AccountBalanceIcon />} sx={{ mx: 1, bgcolor: '#0056d2', color: 'white' }}>Inscreva a Sua Igreja</Button>
+  </>
+)}
 
-  {/* Submenu Relatórios dentro de Finanças */}
-  <Divider sx={{ bgcolor: 'rgba(255,255,255,0.3)' }} />
-  <Typography variant="subtitle2" sx={{ px: 2, pt: 1, color: '#a5b4fc' }}>
-    Relatórios
-  </Typography>
-  {relatoriosFinanceirosSub.map((submenu) => (
-    <MenuItem
-      component={Link}
-      to={submenu.path}
-      key={submenu.path}
-      onClick={handleCloseMenu(setFinanceiroAnchor)}
-      sx={{ color: 'white' }}
-    >
-      {submenu.icon}&nbsp;{submenu.label}
-    </MenuItem>
-  ))}
-</Menu>
+{!isMobile && userRole && (
+  <>
+    {/* Super Admin */}
+    {userRole === 'super_admin' && (
+      <>
+        <Button component={Link} to="/" startIcon={<HomeIcon />} sx={{ mx: 1, color: 'white' }}>Início</Button>
+        <Button component={Link} to="/gestao/gestaoigrejas" startIcon={<AccountBalanceIcon />} sx={{ mx: 1, bgcolor: '#0056d2', color: 'white' }}>Gerir Igrejas</Button>
 
-                  {/* Usuário */}
-                  <Button onClick={handleOpenMenu(setUserAnchor)} startIcon={<AccountCircleIcon />} sx={{ mx: 1, bgcolor: '#ff9800', color: 'white' }}>Usuário</Button>
-                  <Menu anchorEl={userAnchor} open={Boolean(userAnchor)} onClose={handleCloseMenu(setUserAnchor)} PaperProps={{ sx: { bgcolor: '#1e3a8a', color: 'white' } }}>
-                    <MenuItem component={Link} to="/perfil" onClick={handleCloseMenu(setUserAnchor)} sx={{ color: 'white' }}>Perfil</MenuItem>
-                    <MenuItem onClick={() => { handleLogout(); handleCloseMenu(setUserAnchor)(); }} sx={{ color: 'white' }}>Terminar Sessão</MenuItem>
-                  </Menu>
-                </>
-              )}
-            </>
-          )}
+        {/* Usuário */}
+        <Button onClick={handleOpenMenu(setUserAnchor)} startIcon={<AccountCircleIcon />} sx={{ mx: 1, bgcolor: '#ff9800', color: 'white' }}>Usuário</Button>
+        <Menu anchorEl={userAnchor} open={Boolean(userAnchor)} onClose={handleCloseMenu(setUserAnchor)} PaperProps={{ sx: { bgcolor: '#1e3a8a', color: 'white' } }}>
+          <MenuItem component={Link} to="/perfil" onClick={handleCloseMenu(setUserAnchor)} sx={{ color: 'white' }}>Perfil</MenuItem>
+          <MenuItem onClick={() => { handleLogout(); handleCloseMenu(setUserAnchor)(); }} sx={{ color: 'white' }}>Terminar Sessão</MenuItem>
+        </Menu>
+      </>
+    )}
+
+    {/* Admin */}
+    {userRole === 'admin' && (
+      <>
+        <Button component={Link} to="/" startIcon={<HomeIcon />} sx={{ mx: 1, color: 'white' }}>Início</Button>
+        <Button component={Link} to="/dashboard" startIcon={<BarChartIcon />} sx={{ mx: 1, color: 'white' }}>Dashboard</Button>
+        <Button component={Link} to="/listaCultos" startIcon={<EventIcon />} sx={{ mx: 1, bgcolor: '#ff4081', color: 'white' }}>Registrar Culto</Button>
+        <NotificationBell userRole={userRole} />
+
+        {/* Eventos */}
+        <Button onClick={handleOpenMenu(setGestaoAnchor)} startIcon={<EventIcon />} sx={{ mx: 1, color: 'white' }}>Eventos</Button>
+        <Menu anchorEl={gestaoAnchor} open={Boolean(gestaoAnchor)} onClose={handleCloseMenu(setGestaoAnchor)} PaperProps={{ sx: { bgcolor: '#1e3a8a', color: 'white' } }}>
+          {eventosSubmenus.map((submenu) => (
+            <MenuItem component={Link} to={submenu.path} key={submenu.path} onClick={handleCloseMenu(setGestaoAnchor)} sx={{ color: 'white' }}>
+              {submenu.icon}&nbsp;{submenu.label}
+            </MenuItem>
+          ))}
+        </Menu>
+
+        {/* Membros */}
+        <Button onClick={handleOpenMenu(setMembrosAnchor)} startIcon={<PeopleIcon />} sx={{ mx: 1, color: 'white' }}>Membros</Button>
+        <Menu anchorEl={membrosAnchor} open={Boolean(membrosAnchor)} onClose={handleCloseMenu(setMembrosAnchor)} PaperProps={{ sx: { bgcolor: '#1e3a8a', color: 'white' } }}>
+          {membrosSubmenus.map((submenu) => (
+            <MenuItem component={Link} to={submenu.path} key={submenu.path} onClick={handleCloseMenu(setMembrosAnchor)} sx={{ color: 'white' }}>
+              {submenu.icon}&nbsp;{submenu.label}
+            </MenuItem>
+          ))}
+        </Menu>
+
+        {/* Finanças */}
+        <Button onClick={handleOpenMenu(setFinanceiroAnchor)} startIcon={<AttachMoneyIcon />} sx={{ mx: 1, color: 'white' }}>Finanças</Button>
+        <Menu anchorEl={financeiroAnchor} open={Boolean(financeiroAnchor)} onClose={handleCloseMenu(setFinanceiroAnchor)} PaperProps={{ sx: { bgcolor: '#1e3a8a', color: 'white' } }}>
+          {financasSubmenus.map((submenu) => (
+            <MenuItem component={Link} to={submenu.path} key={submenu.path} onClick={handleCloseMenu(setFinanceiroAnchor)} sx={{ color: 'white' }}>
+              {submenu.icon}&nbsp;{submenu.label}
+            </MenuItem>
+          ))}
+          <Divider sx={{ bgcolor: 'rgba(255,255,255,0.3)' }} />
+          <Typography variant="subtitle2" sx={{ px: 2, pt: 1, color: '#a5b4fc' }}>Relatórios</Typography>
+          {relatoriosFinanceirosSub.map((submenu) => (
+            <MenuItem component={Link} to={submenu.path} key={submenu.path} onClick={handleCloseMenu(setFinanceiroAnchor)} sx={{ color: 'white' }}>
+              {submenu.icon}&nbsp;{submenu.label}
+            </MenuItem>
+          ))}
+        </Menu>
+
+        {/* Usuário */}
+        <Button onClick={handleOpenMenu(setUserAnchor)} startIcon={<AccountCircleIcon />} sx={{ mx: 1, bgcolor: '#ff9800', color: 'white' }}>Usuário</Button>
+        <Menu anchorEl={userAnchor} open={Boolean(userAnchor)} onClose={handleCloseMenu(setUserAnchor)} PaperProps={{ sx: { bgcolor: '#1e3a8a', color: 'white' } }}>
+          <MenuItem component={Link} to="/perfil" onClick={handleCloseMenu(setUserAnchor)} sx={{ color: 'white' }}>Perfil</MenuItem>
+          <MenuItem onClick={() => { handleLogout(); handleCloseMenu(setUserAnchor)(); }} sx={{ color: 'white' }}>Terminar Sessão</MenuItem>
+        </Menu>
+      </>
+    )}
+
+    {/* Membro */}
+    {userRole === 'membro' && (
+      <>
+        <Button component={Link} to="/cadastro/membro" startIcon={<PeopleIcon />} sx={{ mx: 1, color: 'white' }}>Cadastro</Button>
+        
+        {/* Usuário (Perfil + Terminar Sessão) */}
+        <Button onClick={handleOpenMenu(setUserAnchor)} startIcon={<AccountCircleIcon />} sx={{ mx: 1, bgcolor: '#ff9800', color: 'white' }}>Usuário</Button>
+        <Menu anchorEl={userAnchor} open={Boolean(userAnchor)} onClose={handleCloseMenu(setUserAnchor)} PaperProps={{ sx: { bgcolor: '#1e3a8a', color: 'white' } }}>
+          <MenuItem component={Link} to="/perfil/membro" onClick={handleCloseMenu(setUserAnchor)} sx={{ color: 'white' }}>Meu Perfil</MenuItem>
+          <MenuItem onClick={() => { handleLogout(); handleCloseMenu(setUserAnchor)(); }} sx={{ color: 'white' }}>Terminar Sessão</MenuItem>
+        </Menu>
+      </>
+    )}
+  </>
+)}
+
         </Toolbar>
       </AppBar>
 

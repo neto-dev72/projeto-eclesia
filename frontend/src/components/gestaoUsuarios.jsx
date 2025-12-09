@@ -18,17 +18,18 @@ import {
   Alert,
   Chip,
 } from '@mui/material';
-import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import AddIcon from '@mui/icons-material/Add';
 import api from '../api/axiosConfig';
 
 export default function GestaoUsuarios() {
   const [usuarios, setUsuarios] = useState([]);
+  const [membrosUser, setMembrosUser] = useState([]);
   const [loading, setLoading] = useState(true);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
 
-  // Buscar usuários da mesma Sede/Filhal
+  // ------------------ Usuários ------------------
   const fetchUsuarios = async () => {
     try {
       setLoading(true);
@@ -42,11 +43,6 @@ export default function GestaoUsuarios() {
     }
   };
 
-  useEffect(() => {
-    fetchUsuarios();
-  }, []);
-
-  // Atualizar função do usuário diretamente
   const handleChangeFuncao = async (usuario, novaFuncao) => {
     try {
       await api.put(`/usuarios/${usuario.id}`, { funcao: novaFuncao });
@@ -58,7 +54,7 @@ export default function GestaoUsuarios() {
     }
   };
 
-  const handleDelete = async (id) => {
+  const handleDeleteUsuario = async (id) => {
     if (!window.confirm('Tem certeza que deseja deletar este usuário?')) return;
     try {
       await api.delete(`/usuarios/${id}`);
@@ -70,6 +66,46 @@ export default function GestaoUsuarios() {
     }
   };
 
+  // ------------------ MembroUser ------------------
+  const fetchMembrosUser = async () => {
+    try {
+      const res = await api.get('/gestao-membrosuser');
+      setMembrosUser(res.data.usuarios);
+    } catch (error) {
+      console.error('Erro ao buscar MembroUser:', error);
+      setSnackbar({ open: true, message: 'Erro ao carregar membros.', severity: 'error' });
+    }
+  };
+
+  const toggleStatusMembro = async (id, statusAtual) => {
+    try {
+      const novoStatus = statusAtual === 'pendente' ? 'aprovado' : 'pendente';
+      await api.put(`/membroUser/${id}/aprovar`, { status: novoStatus });
+      setSnackbar({ open: true, message: `Membro agora está ${novoStatus}!`, severity: 'success' });
+      fetchMembrosUser();
+    } catch (error) {
+      console.error('Erro ao alterar status do membro:', error);
+      setSnackbar({ open: true, message: 'Erro ao alterar status do membro.', severity: 'error' });
+    }
+  };
+
+  const handleDeleteMembro = async (id) => {
+    if (!window.confirm('Tem certeza que deseja deletar este membro?')) return;
+    try {
+      await api.delete(`/membroUser/${id}`);
+      setSnackbar({ open: true, message: 'Membro deletado com sucesso!', severity: 'success' });
+      fetchMembrosUser();
+    } catch (error) {
+      console.error('Erro ao deletar membro:', error);
+      setSnackbar({ open: true, message: 'Erro ao deletar membro.', severity: 'error' });
+    }
+  };
+
+  useEffect(() => {
+    fetchUsuarios();
+    fetchMembrosUser();
+  }, []);
+
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', mt: 10 }}>
@@ -77,6 +113,9 @@ export default function GestaoUsuarios() {
       </Box>
     );
   }
+
+  // Filtra membros pendentes para não mostrar aprovados
+  const membrosPendentes = membrosUser.filter((m) => m.status !== 'aprovado');
 
   return (
     <Box
@@ -99,6 +138,7 @@ export default function GestaoUsuarios() {
           Gestão de Usuários
         </Typography>
 
+        {/* Lista Usuários */}
         <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 3 }}>
           <Button
             variant="contained"
@@ -121,15 +161,7 @@ export default function GestaoUsuarios() {
           </Button>
         </Box>
 
-        <Paper
-          sx={{
-            p: 3,
-            borderRadius: 4,
-            boxShadow: '0 15px 40px rgba(0,0,0,0.2)',
-            transition: 'transform 0.3s',
-            '&:hover': { transform: 'translateY(-5px)' },
-          }}
-        >
+        <Paper sx={{ p: 3, borderRadius: 4, boxShadow: '0 15px 40px rgba(0,0,0,0.2)', transition: 'transform 0.3s', '&:hover': { transform: 'translateY(-5px)' } }}>
           <TableContainer>
             <Table sx={{ minWidth: 650 }}>
               <TableHead sx={{ backgroundColor: '#f0f0f0' }}>
@@ -144,13 +176,7 @@ export default function GestaoUsuarios() {
               </TableHead>
               <TableBody>
                 {usuarios.map((u) => (
-                  <TableRow
-                    key={u.id}
-                    sx={{
-                      '&:hover': { backgroundColor: 'rgba(101,116,255,0.1)', transform: 'scale(1.01)' },
-                      transition: 'all 0.3s',
-                    }}
-                  >
+                  <TableRow key={u.id} sx={{ '&:hover': { backgroundColor: 'rgba(101,116,255,0.1)', transform: 'scale(1.01)' }, transition: 'all 0.3s' }}>
                     <TableCell>{u.nome}</TableCell>
                     <TableCell>
                       <Box sx={{ display: 'flex', gap: 1 }}>
@@ -161,17 +187,14 @@ export default function GestaoUsuarios() {
                             clickable
                             color={u.funcao === f ? 'primary' : 'default'}
                             onClick={() => handleChangeFuncao(u, f)}
-                            sx={{
-                              fontWeight: u.funcao === f ? 'bold' : 'normal',
-                              textTransform: 'capitalize',
-                            }}
+                            sx={{ fontWeight: u.funcao === f ? 'bold' : 'normal', textTransform: 'capitalize' }}
                           />
                         ))}
                       </Box>
                     </TableCell>
                     <TableCell>{new Date(u.createdAt).toLocaleDateString()}</TableCell>
                     <TableCell align="center">
-                      <IconButton color="error" onClick={() => handleDelete(u.id)} sx={{ '&:hover': { transform: 'scale(1.2)' } }}>
+                      <IconButton color="error" onClick={() => handleDeleteUsuario(u.id)} sx={{ '&:hover': { transform: 'scale(1.2)' } }}>
                         <DeleteIcon />
                       </IconButton>
                     </TableCell>
@@ -181,6 +204,66 @@ export default function GestaoUsuarios() {
                   <TableRow>
                     <TableCell colSpan={4} align="center" sx={{ py: 3 }}>
                       Nenhum usuário encontrado.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </Paper>
+
+        {/* ------------------- Lista MembroUser ------------------- */}
+        <Typography variant="h4" sx={{ mt: 6, mb: 3, fontWeight: 'bold', color: '#333' }}>
+          Gestão de MembroUser
+        </Typography>
+
+        <Paper sx={{ p: 3, borderRadius: 4, boxShadow: '0 15px 40px rgba(0,0,0,0.2)', transition: 'transform 0.3s', '&:hover': { transform: 'translateY(-5px)' } }}>
+          <TableContainer>
+            <Table sx={{ minWidth: 650 }}>
+              <TableHead sx={{ backgroundColor: '#f0f0f0' }}>
+                <TableRow>
+                  <TableCell sx={{ fontWeight: 'bold', color: '#333' }}>Nome</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold', color: '#333' }}>Status</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold', color: '#333' }}>Data de Criação</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold', color: '#333' }} align="center">
+                    Ações
+                  </TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {membrosPendentes.map((m) => (
+                  <TableRow key={m.id} sx={{
+                    '&:hover': { backgroundColor: 'rgba(101,116,255,0.1)', transform: 'scale(1.01)' },
+                    transition: 'all 0.3s',
+                    backgroundColor: m.status === 'pendente' ? 'rgba(255, 243, 205, 0.3)' : 'rgba(198, 255, 208, 0.3)'
+                  }}>
+                    <TableCell>{m.nome}</TableCell>
+                    <TableCell>
+                      <Chip
+                        label={m.status}
+                        color={m.status === 'aprovado' ? 'success' : 'warning'}
+                        sx={{ fontWeight: 'bold', textTransform: 'capitalize' }}
+                      />
+                    </TableCell>
+                    <TableCell>{new Date(m.createdAt).toLocaleDateString()}</TableCell>
+                    <TableCell align="center">
+                      <IconButton
+                        color={m.status === 'pendente' ? 'success' : 'warning'}
+                        onClick={() => toggleStatusMembro(m.id, m.status)}
+                        sx={{ '&:hover': { transform: 'scale(1.2)' } }}
+                      >
+                        <CheckCircleIcon />
+                      </IconButton>
+                      <IconButton color="error" onClick={() => handleDeleteMembro(m.id)} sx={{ '&:hover': { transform: 'scale(1.2)' } }}>
+                        <DeleteIcon />
+                      </IconButton>
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {membrosPendentes.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={4} align="center" sx={{ py: 3 }}>
+                      Nenhum membro pendente encontrado.
                     </TableCell>
                   </TableRow>
                 )}

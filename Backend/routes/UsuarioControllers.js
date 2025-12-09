@@ -32,6 +32,7 @@ const Presencas = require("../modells/Presencas")
 const TipoCulto = require("../modells/TipoCulto");
 
 
+const MembroUser = require("../modells/MembroUser")
 
 
 const Cultos= require("../modells/Cultos");
@@ -294,62 +295,92 @@ const jwt = require('jsonwebtoken');
 
 const JWT_SECRET = 'berna12890i'; // ⚠️ Coloque uma senha mais segura para produção
 
-
-
-
-// Rota de login
+// Rota de login atualizada
 router.post('/login', async (req, res) => {
   const { nome, senha } = req.body;
 
-  console.log('Body recebido:', req.body);
-
-  // Validação básica
   if (!nome || !senha) {
     return res.status(400).json({ message: 'Nome e senha são obrigatórios.' });
   }
 
   try {
-    // Buscar usuário pelo nome
-    const usuario = await Usuarios.findOne({ where: { nome } });
+    // ---------------------------------------------------------
+    // 1️⃣ TENTAR LOGAR COMO USUÁRIO NORMAL
+    // ---------------------------------------------------------
+    let usuario = await Usuarios.findOne({ where: { nome } });
 
-    if (!usuario) {
-      return res.status(401).json({ message: 'Usuário ou senha inválidos.' });
+    if (usuario) {
+      const senhaValida = await bcrypt.compare(senha, usuario.senha);
+      if (!senhaValida) {
+        return res.status(401).json({ message: 'Usuário ou senha inválidos.' });
+      }
+
+      const payload = {
+        id: usuario.id,
+        nome: usuario.nome,
+        funcao: usuario.funcao,
+        SedeId: usuario.SedeId || null,
+        FilhalId: usuario.FilhalId || null,
+        tipo: "usuario"
+      };
+
+      const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '1d' });
+
+      return res.status(200).json({
+        message: "Login realizado com sucesso!",
+        token,
+        usuario: payload
+      });
     }
 
-    // Verificar senha
-    const senhaValida = await bcrypt.compare(senha, usuario.senha);
+    // ---------------------------------------------------------
+    // 2️⃣ USUÁRIO NÃO EXISTE → VERIFICAR MembroUser
+    // ---------------------------------------------------------
+    const membroUser = await MembroUser.findOne({ 
+      where: { nome, status: 'aprovado' } // apenas membros aprovados
+    });
 
+    if (!membroUser) {
+      return res.status(403).json({ message: "Usuário não encontrado ou conta ainda não aprovada." });
+    }
+
+    // ---------------------------------------------------------
+    // 3️⃣ VALIDAR SENHA DO MembroUser
+    // ---------------------------------------------------------
+    const senhaValida = await bcrypt.compare(senha, membroUser.senha);
     if (!senhaValida) {
-      return res.status(401).json({ message: 'Usuário ou senha inválidos.' });
+      return res.status(401).json({ message: "Usuário ou senha inválidos." });
     }
 
-    // Payload do token com base nos campos reais da tabela, incluindo função
+    // ---------------------------------------------------------
+    // 4️⃣ GERAR TOKEN PARA MEMBRO
+    // ---------------------------------------------------------
     const payload = {
-      id: usuario.id,
-      nome: usuario.nome,
-      SedeId: usuario.SedeId || null,
-      FilhalId: usuario.FilhalId || null,
-      funcao: usuario.funcao || null, // adicionando a função
+      id: membroUser.id,
+      nome: membroUser.nome,
+      funcao: membroUser.funcao,
+      MembroId: membroUser.MembroId || null,
+      SedeId: membroUser.SedeId || null,
+      FilhalId: membroUser.FilhalId || null,
+      tipo: "membro"
     };
 
-    // Gerar token JWT válido por 1 dia
-    const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '1d' });
+    const token = jwt.sign(payload, JWT_SECRET, { expiresIn: "1d" });
 
     return res.status(200).json({
-      message: 'Login realizado com sucesso!',
+      message: "Login realizado com sucesso!",
       token,
       usuario: payload
     });
 
   } catch (error) {
-    console.error('Erro no login:', error);
-    return res.status(500).json({ message: 'Erro interno no servidor.' });
+    console.error("Erro no login:", error);
+    return res.status(500).json({
+      message: "Erro interno no servidor.",
+      error: error.message
+    });
   }
 });
-
-
-
-
 
 
 
@@ -3880,6 +3911,48 @@ router.get('/sedes-com-filhais', async (req, res) => {
 
 
 
+// POST /membros/cadastrar-pendente
+router.post('/membros/cadastrar-pendente', async (req, res) => {
+  try {
+    const { nome, senha, SedeId, FilhalId } = req.body;
+
+    if (!nome || !senha || !SedeId) {
+      return res.status(400).json({ message: "Nome, senha e sede são obrigatórios." });
+    }
+
+    // Verificar se a senha já existe em outro membro
+    const todosMembros = await MembroUser.findAll();
+    for (const membro of todosMembros) {
+      const senhaIgual = await bcrypt.compare(senha, membro.senha);
+      if (senhaIgual) {
+        return res.status(400).json({ message: "Essa senha já está em uso por outro membro." });
+      }
+    }
+
+    // Criptografar senha
+    const hashedPassword = await bcrypt.hash(senha, 10);
+
+    // Criar membro pendente
+    const novoMembro = await MembroUser.create({
+      nome,
+      senha: hashedPassword,
+      funcao: 'membro',
+      status: 'pendente',
+      SedeId,
+      FilhalId: FilhalId || null, // pode ser nulo
+      createdAt: new Date(),
+      updatedAt: new Date()
+    });
+
+    res.status(201).json({ message: "Membro cadastrado com sucesso e está pendente de aprovação." });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Erro ao cadastrar membro." });
+  }
+});
+
+
+
 
 
 // Rota para criar uma nova Sede
@@ -5917,6 +5990,471 @@ router.get("/contador", auth, async (req, res) => {
 
 
 
+// GET /gestao-membrosuser
+router.get('/gestao-membrosuser', auth, async (req, res) => {
+  try {
+    const { SedeId, FilhalId } = req.usuario;
 
+    // Montar filtro hierárquico
+    let filtro = {};
+    if (FilhalId) {
+      filtro.FilhalId = FilhalId; // prioridade: Filhal
+    } else if (SedeId) {
+      filtro.SedeId = SedeId;     // se não tiver Filhal, filtra pela Sede
+    }
+
+    const membros = await MembroUser.findAll({
+      where: filtro,
+      order: [['createdAt', 'DESC']],
+    });
+
+    res.json({ usuarios: membros });
+  } catch (err) {
+    console.error('❌ Erro ao buscar membros:', err);
+    res.status(500).json({ message: "Erro ao buscar membros." });
+  }
+});
+
+
+
+
+// PUT /membros/:id/aprovar
+router.put('/membroUser/:id/aprovar', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const membro = await MembroUser.findByPk(id);
+    if (!membro) return res.status(404).json({ message: "Membro não encontrado." });
+
+    membro.status = 'aprovado';
+    await membro.save();
+
+    res.json({ message: `Membro ${membro.nome} aprovado com sucesso!` });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Erro ao aprovar membro." });
+  }
+});
+
+
+// DELETE /membros/:id
+router.delete('/membroUser/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const membro = await MembroUser.findByPk(id);
+    if (!membro) return res.status(404).json({ message: "Membro não encontrado." });
+
+    await membro.destroy();
+
+    res.json({ message: `Membro ${membro.nome} deletado com sucesso!` });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Erro ao deletar membro." });
+  }
+});
+
+
+
+
+
+
+
+
+// GET /meu-membro
+router.get('/meu-membro', auth, (req, res) => {
+  try {
+    if (!req.usuario) {
+      return res.status(404).json({ message: "Usuário não encontrado no token." });
+    }
+
+    // Retorna apenas o nome (ou qualquer outro campo de req.usuario)
+    res.json({ nome: req.usuario.nome });
+  } catch (err) {
+    console.error('❌ Erro ao buscar dados do MembroUser logado:', err);
+    res.status(500).json({ message: "Erro ao buscar dados do usuário." });
+  }
+});
+
+
+
+
+// GET /meu-membro-detalhado
+router.get('/meu-membro-detalhado', auth, async (req, res) => {
+  try {
+    if (!req.usuario) {
+      return res.status(404).json({ message: "Usuário não encontrado no token." });
+    }
+
+    const { id, funcao } = req.usuario;
+
+    if (funcao === 'membro') {
+      // Buscar na tabela MembroUsers
+      const membroUser = await MembroUser.findByPk(id);
+
+      if (!membroUser || !membroUser.MembroId) {
+        return res.json({ existe: false, nome: membroUser?.nome || '' });
+      }
+
+      // Buscar dados do Membro
+      const membro = await Membros.findByPk(membroUser.MembroId);
+
+      if (!membro) return res.status(404).json({ message: "Membro não encontrado." });
+
+      // --- Dados relacionados ---
+      const [dadosAcademicos, dadosCristaos, diversos] = await Promise.all([
+        DadosAcademicos.findAll({ where: { MembroId: membro.id } }),
+        DadosCristaos.findAll({ where: { MembroId: membro.id } }),
+        Diversos.findAll({ where: { MembroId: membro.id } }),
+      ]);
+
+      // --- Departamentos ---
+      const deptosIds = await DepartamentoMembros.findAll({
+        where: { MembroId: membro.id },
+        attributes: ['DepartamentoId']
+      });
+      const departamentoIds = deptosIds.map(d => d.DepartamentoId);
+      const departamentos = await Departamentos.findAll({
+        where: { id: departamentoIds },
+        attributes: ['id', 'nome']
+      });
+
+      // --- Cargos ---
+      const cargosIds = await CargoMembro.findAll({
+        where: { MembroId: membro.id },
+        attributes: ['CargoId']
+      });
+      const cargoIds = cargosIds.map(c => c.CargoId);
+      const cargos = await Cargo.findAll({
+        where: { id: cargoIds },
+        attributes: ['id', 'nome']
+      });
+
+      // --- Foto do membro ---
+      const fotoUrl = membro.foto ? `${req.protocol}://${req.get('host')}/${membro.foto}` : null;
+
+      // Retornar todos os dados
+      return res.json({
+        existe: true,
+        membro: {
+          ...membro.dataValues,
+          foto: fotoUrl,
+          dadosAcademicos,
+          dadosCristaos,
+          diversos,
+          departamentos,
+          cargos
+        }
+      });
+
+    } else {
+      // Usuário comum
+      const usuario = await Usuarios.findByPk(id);
+      if (!usuario) return res.status(404).json({ message: "Usuário não encontrado." });
+      return res.json({ existe: true, usuario });
+    }
+
+  } catch (err) {
+    console.error('Erro ao buscar dados do membro logado:', err);
+    res.status(500).json({ message: "Erro interno." });
+  }
+});
+
+
+
+
+
+// Rota para cadastrar membros com foto, departamentos e tabelas relacionadas
+router.post('/membros2', auth, upload.single('foto'), async (req, res) => {
+  try {
+    const {
+      nome, genero, data_nascimento, estado_civil, bi, telefone, email,
+      endereco_rua, endereco_bairro, endereco_cidade, endereco_provincia,
+      grau_academico, profissao, batizado, data_batismo, ativo, CargosIds,
+      DepartamentosIds,
+
+      // Dados Acadêmicos
+      habilitacoes, especialidades, estudo_teologico, local_formacao,
+
+      // Dados Cristãos
+      consagrado, data_consagracao, categoria_ministerial,
+
+      // Diversos
+      trabalha, conta_outrem, conta_propria
+    } = req.body;
+
+    // === Conversão segura de IDs para números e filtragem de NaN ===
+    const cargosArray = Array.isArray(CargosIds)
+      ? CargosIds.map((id) => parseInt(id, 10)).filter((id) => !isNaN(id))
+      : CargosIds
+      ? [parseInt(CargosIds, 10)].filter((id) => !isNaN(id))
+      : [];
+
+    const departamentosArray = Array.isArray(DepartamentosIds)
+      ? DepartamentosIds.map((id) => parseInt(id, 10)).filter((id) => !isNaN(id))
+      : DepartamentosIds
+      ? [parseInt(DepartamentosIds, 10)].filter((id) => !isNaN(id))
+      : [];
+
+    // Validação obrigatória
+    if (!nome || !genero || cargosArray.length === 0) {
+      return res.status(400).json({
+        message: 'Nome, gênero e pelo menos um cargo são obrigatórios.'
+      });
+    }
+
+    const fotoCaminho = req.file ? `/uploads/fotos/${req.file.filename}` : null;
+
+    // Cadastro do membro
+    const dados = limparCamposVazios({
+      nome,
+      foto: fotoCaminho,
+      genero,
+      data_nascimento,
+      estado_civil,
+      bi,
+      telefone,
+      email,
+      endereco_rua,
+      endereco_bairro,
+      endereco_cidade,
+      endereco_provincia,
+      grau_academico,
+      profissao,
+      batizado: batizado === true || batizado === 'true',
+      data_batismo,
+      ativo: ativo === false || ativo === 'false' ? false : true,
+      SedeId: req.usuario.SedeId || null,
+      FilhalId: req.usuario.FilhalId || null
+    });
+
+    const novoMembro = await Membros.create(dados);
+
+    // Atualiza automaticamente o MembroId do usuário logado
+    if (req.usuario && req.usuario.funcao === 'membro') {
+      await MembroUser.update(
+        { MembroId: novoMembro.id },
+        { where: { id: req.usuario.id } }
+      );
+    }
+
+    // Cadastro dos cargos
+    if (cargosArray.length > 0) {
+      const registrosCargo = cargosArray.map((cargoId) => ({
+        MembroId: novoMembro.id,
+        CargoId: cargoId,
+      }));
+      await CargoMembro.bulkCreate(registrosCargo);
+    }
+
+    // Cadastro dos departamentos
+    if (departamentosArray.length > 0) {
+      const registrosDepartamentos = departamentosArray.map((depId) => ({
+        MembroId: novoMembro.id,
+        DepartamentoId: depId,
+        ativo: true,
+        data_entrada: new Date(),
+      }));
+      await DepartamentoMembros.bulkCreate(registrosDepartamentos);
+    }
+
+    // Dados Acadêmicos
+    await DadosAcademicos.create({
+      habilitacoes: habilitacoes || null,
+      especialidades: especialidades || null,
+      estudo_teologico: estudo_teologico || null,
+      local_formacao: local_formacao || null,
+      MembroId: novoMembro.id
+    });
+
+    // Dados Cristãos
+    await DadosCristaos.create({
+      consagrado: consagrado === true || consagrado === 'true',
+      data_consagracao: data_consagracao || null,
+      categoria_ministerial: categoria_ministerial || null,
+      MembroId: novoMembro.id
+    });
+
+    // Diversos / Trabalho
+    await Diversos.create({
+      trabalha: trabalha === true || trabalha === 'true',
+      conta_outrem: conta_outrem === true || conta_outrem === 'true',
+      conta_propria: conta_propria === true || conta_propria === 'true',
+      MembroId: novoMembro.id
+    });
+
+    return res.status(201).json({
+      message: 'Membro cadastrado com sucesso!',
+      membro: novoMembro
+    });
+
+  } catch (error) {
+    console.error('Erro ao cadastrar membro, cargos, departamentos ou tabelas relacionadas:', error);
+    return res.status(500).json({ message: 'Erro interno no servidor.' });
+  }
+});
+ 
+
+// GET /perfil/membro
+router.get('/perfil/do/membro', auth, async (req, res) => {
+  try {
+    if (!req.usuario) {
+      return res.status(404).json({ message: "Usuário não encontrado no token." });
+    }
+
+    const { id, funcao } = req.usuario;
+
+    if (funcao !== 'membro') {
+      return res.status(403).json({ message: "Apenas membros podem acessar o perfil." });
+    }
+
+    // 1) Buscar membroUser
+    const membroUser = await MembroUser.findByPk(id);
+    if (!membroUser || !membroUser.MembroId) {
+      return res.status(404).json({ message: "Você ainda não possui um cadastro de membro vinculado." });
+    }
+
+    // 2) Buscar o membro
+    const membro = await Membros.findByPk(membroUser.MembroId);
+    if (!membro) {
+      return res.status(404).json({ message: "Membro não encontrado." });
+    }
+
+    const fotoUrl = membro.foto ? `${req.protocol}://${req.get('host')}/${membro.foto}` : null;
+
+    // ---------------------------------------------
+    // 🔥 3) Buscar contribuições do membro
+    // ---------------------------------------------
+    const anoAtual = new Date().getFullYear();
+
+    const contribuicoes = await Contribuicao.findAll({
+      where: {
+        MembroId: membro.id,
+        data: {
+          [Op.gte]: new Date(`${anoAtual}-01-01`),
+          [Op.lte]: new Date(`${anoAtual}-12-31`)
+        }
+      },
+      include: [
+        { model: TipoContribuicao, attributes: ['id', 'nome'] }
+      ],
+      order: [['data', 'ASC']]
+    });
+
+    // ---------------------------------------------
+    // 🔥 4) Resumo de desempenho
+    // ---------------------------------------------
+    const totalAno = contribuicoes.reduce((sum, c) => sum + Number(c.valor), 0);
+
+    const totalContribuicoes = contribuicoes.length;
+
+    const maiorContribuicao = contribuicoes.length > 0
+      ? Math.max(...contribuicoes.map(c => Number(c.valor)))
+      : 0;
+
+    // média mensal = total dividido pelos meses que já passaram
+    const mesAtual = new Date().getMonth() + 1;
+    const mediaMensal = mesAtual > 0 ? (totalAno / mesAtual) : 0;
+
+    // ---------------------------------------------
+    // 🔥 5) Meses que NÃO contribuiu
+    // ---------------------------------------------
+    const mesesContribuidos = new Set(
+      contribuicoes.map(c => new Date(c.data).getMonth() + 1)
+    );
+
+    const mesesNaoContribuiu = [];
+    for (let m = 1; m <= 12; m++) {
+      if (!mesesContribuidos.has(m)) mesesNaoContribuiu.push(m);
+    }
+
+    // ---------------------------------------------
+    // 🔥 6) Alertas inteligentes
+    // ---------------------------------------------
+    const alertas = [];
+
+    // 3 meses sem contribuir
+    if (contribuicoes.length > 0) {
+      const ultima = new Date(contribuicoes[contribuicoes.length - 1].data);
+      const hoje = new Date();
+      const diffMeses = (hoje.getFullYear() - ultima.getFullYear()) * 12 + (hoje.getMonth() - ultima.getMonth());
+      if (diffMeses >= 3) {
+        alertas.push("Você está há 3 meses ou mais sem contribuir.");
+      }
+    }
+
+    // nenhuma contribuição no ano
+    if (totalContribuicoes === 0) {
+      alertas.push("Você ainda não realizou nenhuma contribuição este ano.");
+    }
+
+    // contribuições muito baixas (regra simples)
+    if (totalAno > 0 && mediaMensal < 1000) {
+      alertas.push("Suas contribuições mensais estão abaixo do esperado.");
+    }
+
+    // ---------------------------------------------
+    // 🔥 7) 4 Indicadores adicionais
+    // ---------------------------------------------
+
+    // Tipo de contribuição mais frequente
+    let tipoMaisFrequente = null;
+    if (contribuicoes.length > 0) {
+      const contador = {};
+      for (const c of contribuicoes) {
+        const nome = c.TipoContribuicao ? c.TipoContribuicao.nome : "Desconhecido";
+        contador[nome] = (contador[nome] || 0) + 1;
+      }
+      tipoMaisFrequente = Object.entries(contador).sort((a, b) => b[1] - a[1])[0][0];
+    }
+
+    // Mês com maior total (mês mais generoso)
+    const totalPorMes = {};
+    contribuicoes.forEach(c => {
+      const mes = new Date(c.data).getMonth() + 1;
+      totalPorMes[mes] = (totalPorMes[mes] || 0) + Number(c.valor);
+    });
+
+    const mesMaisGeneroso =
+      Object.keys(totalPorMes).length > 0
+        ? Number(
+            Object.entries(totalPorMes).sort((a, b) => b[1] - a[1])[0][0]
+          )
+        : null;
+
+    // ---------------------------------------------
+    // 🔥 8) Resposta final
+    // ---------------------------------------------
+    return res.json({
+      perfil: {
+        id: membro.id,
+        nome: membro.nome,
+        telefone: membro.telefone,
+        genero: membro.genero,
+        estado_civil: membro.estado_civil,
+        foto: fotoUrl
+      },
+      desempenho: {
+        totalAno,
+        totalContribuicoes,
+        maiorContribuicao,
+        mediaMensal
+      },
+      mesesNaoContribuiu,
+      alertas,
+      indicadores: {
+        quantidadeAno: totalContribuicoes,
+        tipoMaisFrequente,
+        mesMaisGeneroso,
+        mesesComContribuicao: [...mesesContribuidos]
+      }
+    });
+
+  } catch (err) {
+    console.error("Erro ao carregar perfil:", err);
+    res.status(500).json({ message: "Erro interno." });
+  }
+});
+ 
 
 module.exports = router;

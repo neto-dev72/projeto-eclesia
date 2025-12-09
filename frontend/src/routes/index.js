@@ -51,6 +51,23 @@ import TabelaSalarios from '../components/TabelaSalarios'; // <-- nova página
 // Importa o novo componente de Dashboard de Eventos
 import EventosDashboard from '../components/Dasheventos'; // <-- Novo componente para /dasheventos
 
+
+// Importa o novo componente de Dashboard de Eventos
+import CadastroMembros from '../pages/CadastroMembro'; // <-- Novo componente para /dasheventos
+
+
+
+// Importa o novo componente de Dashboard de Eventos
+import CriarContaMembro from '../pages/CriarContaMembro'; // <-- Novo componente para /dasheventos
+
+
+
+
+// Importa o novo componente de Dashboard de Eventos
+import PerfilMembro from '../pages/PerfilMembro'; // <-- Novo componente para /dasheventos
+
+
+
 // ---------------- AuthWrapper ---------------- //
 function AuthWrapper({ children }) {
   const [isAllowed, setIsAllowed] = useState(null); // null = carregando
@@ -122,6 +139,14 @@ export default function AppRoutes() {
         <Route path="/TabelaCulto" element={<TabelaCulto />} /> {/* NOVA ROTA PÚBLICA */}
         <Route path="/gestaoAtendimento" element={<GestaoAtendimento />} /> {/* rota pública */}
         <Route path="/gestaoCompromisso" element={<GestaoCompromisso />} /> {/* rota pública */}
+
+  <Route path="/cadastro/membro" element={< CadastroMembros />} /> {/* rota pública */}
+
+ <Route path="/perfil/membro" element={< PerfilMembro />} /> {/* rota pública */}
+
+
+
+  <Route path="/criar/conta/membro" element={< CriarContaMembro />} /> {/* rota pública */}
 
         {/* Nova Rota Pública para o Dashboard de Eventos */}
         <Route path="/dasheventos" element={<EventosDashboard />} /> {/* Nova Rota Pública */}
